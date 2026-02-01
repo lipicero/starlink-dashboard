@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package SpaceX.API.Device;
+
+message DeviceInfo {
+    string id = 1;
+    string hardware_version = 2;
+    string software_version = 3;
+    string country_code = 4;
+    int32 utc_offset_s = 5;
+    bool software_partitions_equal = 6;
+    bool is_dev = 7;
+    int32 bootcount = 8;
+    int32 anti_rollback_version = 9;
+    bool is_hitl = 10;
+    string manufactured_version = 11;
+    int64 generation_number = 12;
+    int64 dish_cohort_id = 13;
+    bool is_bootrom_override = 14;
+}
+
+message DeviceState {
+    uint64 uptime_s = 1;
+}
+
+message SignedData {
+    bytes data = 1;
+    bytes signature = 2;
+}
