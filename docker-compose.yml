@@ -41,7 +41,7 @@ services:
       - "4000:4000"
     environment:
       - PROMETHEUS_URL=http://prometheus:9090
-      - POLL_INTERVAL_MS=5000
+      - POLL_INTERVAL_MS=1000
       - PORT=4000
       - MOCK_MODE=false
     volumes:
