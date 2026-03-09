@@ -17,25 +17,57 @@ Un panel de control moderno para monitorear el estado y rendimiento de tu kit St
 - **Persistencia (Opcional)**: InfluxDB para series temporales.
 - **Métricas de Origen**: Se asume el uso de `starlink-exporter` enviando datos a un servidor Prometheus.
 
-## 🐳 Despliegue con Docker (Recomendado)
+## 🐳 Despliegue con Docker en Windows (Recomendado)
 
-Para correr todo el stack (Frontend, Backend, Prometheus y Starlink Exporter) de forma unificada:
+Esta es la forma más sencilla de ejecutar el proyecto, ya que incluye todos los componentes necesarios (Frontend, Backend, Prometheus y Starlink Exporter) configurados automáticamente.
 
-1. **Asegúrate de tener Docker y Docker Compose instalados.**
-2. **Ejecuta el stack:**
-   ```bash
-   docker-compose up -d --build
-   ```
-3. **Acceso:**
-   - **Frontend**: `http://localhost:3000`
-   - **Backend (API/Socket)**: `http://localhost:4000`
-   - **Prometheus**: `http://localhost:9090`
-   - **Starlink Exporter**: `http://localhost:9451`
+### 1. Instalación de Docker en Windows
+1. Descarga e instala **[Docker Desktop para Windows](https://www.docker.com/products/docker-desktop/)**.
+2. Durante la instalación, asegúrate de activar la opción **"Use the WSL 2 based engine"** (recomendado para mejor rendimiento).
+3. Reinicia tu PC si el instalador lo solicita.
+4. Abre la aplicación **Docker Desktop** y espera a que el icono de la ballena en la barra de tareas esté en verde (indica que el motor está corriendo).
 
-### Beneficios de Docker:
-- **Todo en uno**: No necesitas instalar Node.js ni configurar Prometheus manualmente.
-- **Portabilidad**: Puedes correrlo en cualquier máquina que tenga acceso a la red de Starlink (IP `192.168.100.1`).
-- **Aislado**: Cada servicio corre en su propio contenedor.
+### 2. Compilación y Ejecución
+Desde una terminal (PowerShell o CMD) en la raíz de este proyecto:
+
+*   **Para compilar e iniciar todo por primera vez:**
+    ```powershell
+    docker-compose up -d --build
+    ```
+*   **Para detener los servicios:**
+    ```powershell
+    docker-compose down
+    ```
+*   **Para ver si todo está bien:**
+    ```powershell
+    docker-compose ps
+    ```
+
+### 3. Cómo llevar el proyecto a otra PC (Despliegue Offline)
+Si necesitas llevar el proyecto a una computadora que no tiene internet pero está conectada a la antena Starlink:
+
+1. **En la PC con internet:**
+   - Compila las imágenes: `docker-compose build`
+   - Guarda las imágenes en archivos físicos:
+     ```powershell
+     docker save -o dashboard_frontend.tar starlink-dashboard-frontend:latest
+     docker save -o dashboard_backend.tar starlink-dashboard-backend:latest
+     ```
+2. **En la PC de destino:**
+   - Instala **Docker Desktop**.
+   - Copia los archivos `.tar` y el archivo `docker-compose.yml` de este repositorio.
+   - Carga las imágenes:
+     ```powershell
+     docker load -i dashboard_frontend.tar
+     docker load -i dashboard_backend.tar
+     ```
+   - Inicia el sistema: `docker-compose up -d`
+
+### Acceso:
+- **Frontend**: `http://localhost:3000` (Interfaz de usuario)
+- **Backend**: `http://localhost:4000` (API y WebSockets)
+- **Prometheus**: `http://localhost:9090` (Panel de métricas crudas)
+- **Starlink Exporter**: `http://localhost:9451` (Extractor de la antena)
 
 ## 📁 Estructura del Proyecto
 
