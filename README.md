@@ -17,6 +17,26 @@ Un panel de control moderno para monitorear el estado y rendimiento de tu kit St
 - **Persistencia (Opcional)**: InfluxDB para series temporales.
 - **Métricas de Origen**: Se asume el uso de `starlink-exporter` enviando datos a un servidor Prometheus.
 
+## 🐳 Despliegue con Docker (Recomendado)
+
+Para correr todo el stack (Frontend, Backend, Prometheus y Starlink Exporter) de forma unificada:
+
+1. **Asegúrate de tener Docker y Docker Compose instalados.**
+2. **Ejecuta el stack:**
+   ```bash
+   docker-compose up -d --build
+   ```
+3. **Acceso:**
+   - **Frontend**: `http://localhost:3000`
+   - **Backend (API/Socket)**: `http://localhost:4000`
+   - **Prometheus**: `http://localhost:9090`
+   - **Starlink Exporter**: `http://localhost:9817`
+
+### Beneficios de Docker:
+- **Todo en uno**: No necesitas instalar Node.js ni configurar Prometheus manualmente.
+- **Portabilidad**: Puedes correrlo en cualquier máquina que tenga acceso a la red de Starlink (IP `192.168.100.1`).
+- **Aislado**: Cada servicio corre en su propio contenedor.
+
 ## 📁 Estructura del Proyecto
 
 - `frontend/`: Aplicación SPA/SSR (Next.js) para la interfaz de usuario.

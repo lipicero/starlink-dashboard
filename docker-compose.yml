@@ -1,0 +1,74 @@
+services:
+  # 🔭 Starlink Exporter (extrae métricas de la antena)
+  starlink-exporter:
+    image: danitso/starlink-exporter:latest
+    container_name: starlink-exporter
+    restart: unless-stopped
+    ports:
+      - "9817:9817"
+    environment:
+      - DISH_ADDR=192.168.100.1:9200
+    networks:
+      - starlink-net
+
+  # 📊 Prometheus (almacena métricas)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    depends_on:
+      - starlink-exporter
+    networks:
+      - starlink-net
+
+  # ⚙️ Backend (procesa métricas y sirve WebSockets)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: starlink-backend
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      - PROMETHEUS_URL=http://prometheus:9090
+      - POLL_INTERVAL_MS=5000
+      - PORT=4000
+      - MOCK_MODE=false
+    volumes:
+      - ./backend/consumption.json:/app/consumption.json
+    depends_on:
+      - prometheus
+    networks:
+      - starlink-net
+
+  # 🖥️ Frontend (Interfaz de Usuario)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: starlink-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - starlink-net
+
+networks:
+  starlink-net:
+    driver: bridge
+
+volumes:
+  prometheus_data:
