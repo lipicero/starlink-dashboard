@@ -3,6 +3,7 @@ export interface HealthStatus {
   is_heating: boolean;
   thermal_throttle: boolean;
   dish_temperature: number;
+  power_w: number;
 }
 
 export interface ServiceStatus {
@@ -10,6 +11,10 @@ export interface ServiceStatus {
   downtime_seconds: number;
   obstruction_fraction: number;
   state: string;
+  update_ready: boolean;
+  obstructed_seconds_24h: number;
+  mobility_class: string;
+  power_save_idle: boolean;
 }
 
 export interface NetworkStatus {
@@ -18,13 +23,21 @@ export interface NetworkStatus {
   downlink_mbps: number;
   uplink_mbps: number;
   eth_link_active: boolean;
+  snr_valid: boolean;
 }
 
 export interface InstallationStatus {
   tilt_current: number;
   tilt_target: number;
+  azimuth_current: number;
+  azimuth_target: number;
   tilt_delta: number;
   rotation_delta: number;
+  gps_satellites: number;
+  gps_valid: boolean;
+  altitude_m: number;
+  latitude: number;
+  longitude: number;
 }
 
 export interface Alert {

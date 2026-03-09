@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { io } from "socket.io-client";
 import { StatusSnapshot } from "../types";
 
-const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:4000";
+const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || (typeof window !== "undefined" ? `http://${window.location.hostname}:4000` : "http://localhost:4000");
 
 export function useSocket() {
     const [isConnected, setIsConnected] = useState(false);

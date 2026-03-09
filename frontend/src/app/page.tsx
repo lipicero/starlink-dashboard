@@ -7,20 +7,19 @@ import { StatusSnapshot } from "../types";
 
 export default function Home() {
   const { isConnected, data } = useSocket();
-  const [history, setHistory] = useState<{ timestamp: string; downlink: number; latency: number }[]>([]);
+  const [history, setHistory] = useState<{ timestamp: string; downlink: number; uplink: number; latency: number }[]>([]);
 
-  // On mount, fetch history (if we had a real history endpoint that returned simpler data, we'd use it)
-  // For now, we'll accumulate local history from real-time updates for the "session"
-  // OR we can fetch from /api/history and transform it.
+
 
   useEffect(() => {
     async function fetchHistory() {
       try {
-        const res = await fetch("http://localhost:4000/api/history");
+        const res = await fetch(`http://${window.location.hostname}:4000/api/history`);
         const historyData: StatusSnapshot[] = await res.json();
         const formatted = historyData.map(snap => ({
           timestamp: snap.timestamp,
           downlink: snap.network.downlink_mbps,
+          uplink: snap.network.uplink_mbps,
           latency: snap.network.latency_ms
         }));
         setHistory(formatted);
@@ -37,6 +36,7 @@ export default function Home() {
         const newPoint = {
           timestamp: data.timestamp,
           downlink: data.network.downlink_mbps,
+          uplink: data.network.uplink_mbps,
           latency: data.network.latency_ms
         };
         // Keep last 60 points

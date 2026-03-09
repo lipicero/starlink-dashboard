@@ -1,4 +1,8 @@
+import fs from 'fs';
+import path from 'path';
+
 const MAX_HISTORY = 720; // 1 hour at 5s intervals
+const FILE_PATH = path.join(process.cwd(), 'consumption.json');
 
 class Store {
     constructor() {
@@ -10,20 +14,62 @@ class Store {
             month_bytes: 0,
             last_integration_ts: Date.now()
         };
+        this.lastSaveTime = 0;
+
+        this.loadConsumption();
+    }
+
+    loadConsumption() {
+        try {
+            if (fs.existsSync(FILE_PATH)) {
+                const data = JSON.parse(fs.readFileSync(FILE_PATH, 'utf-8'));
+                this.consumption.session_bytes = data.session_bytes || 0;
+                this.consumption.day_bytes = data.day_bytes || 0;
+                this.consumption.month_bytes = data.month_bytes || 0;
+                console.log("[Store] Data de consumo recuperada del disco.");
+            }
+        } catch (err) {
+            console.error("[Store] No se pudo cargar el historial de consumo:", err.message);
+        }
+    }
+
+    saveConsumption() {
+        const dataToSave = {
+            session_bytes: this.consumption.session_bytes,
+            day_bytes: this.consumption.day_bytes,
+            month_bytes: this.consumption.month_bytes
+        };
+        fs.writeFile(FILE_PATH, JSON.stringify(dataToSave), (err) => {
+            if (err) console.error("[Store] Error guardando al disco:", err.message);
+        });
     }
 
     resetDaily() {
         this.consumption.day_bytes = 0;
+        this.saveConsumption();
     }
 
     resetMonthly() {
         this.consumption.month_bytes = 0;
+        this.saveConsumption();
     }
 
     update(snapshot) {
         // Integrate Consumption
         const now = Date.now();
         const deltaSeconds = (now - this.consumption.last_integration_ts) / 1000;
+        
+        // Check for day/month reset
+        const prevDate = new Date(this.consumption.last_integration_ts);
+        const currentDate = new Date(now);
+        
+        if (prevDate.getDate() !== currentDate.getDate()) {
+            this.resetDaily();
+        }
+        if (prevDate.getMonth() !== currentDate.getMonth()) {
+            this.resetMonthly();
+        }
+
         this.consumption.last_integration_ts = now;
 
         if (deltaSeconds > 0 && deltaSeconds < 60) { // Avoid huge jumps if paused
@@ -50,6 +96,12 @@ class Store {
         this.historyBuffer.push(snapshot);
         if (this.historyBuffer.length > MAX_HISTORY) {
             this.historyBuffer.shift();
+        }
+
+        // Guardar a disco cada 10 segundos
+        if (now - this.lastSaveTime > 10000) {
+            this.saveConsumption();
+            this.lastSaveTime = now;
         }
     }
 
