@@ -30,7 +30,7 @@ Para correr todo el stack (Frontend, Backend, Prometheus y Starlink Exporter) de
    - **Frontend**: `http://localhost:3000`
    - **Backend (API/Socket)**: `http://localhost:4000`
    - **Prometheus**: `http://localhost:9090`
-   - **Starlink Exporter**: `http://localhost:9817`
+   - **Starlink Exporter**: `http://localhost:9451`
 
 ### Beneficios de Docker:
 - **Todo en uno**: No necesitas instalar Node.js ni configurar Prometheus manualmente.

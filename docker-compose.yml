@@ -1,13 +1,12 @@
 services:
   # 🔭 Starlink Exporter (extrae métricas de la antena)
   starlink-exporter:
-    image: danitso/starlink-exporter:latest
+    image: ghcr.io/joshuasing/starlink_exporter:latest
     container_name: starlink-exporter
     restart: unless-stopped
+    command: ["-dish=192.168.100.1:9200", "-listen=:9451"]
     ports:
-      - "9817:9817"
-    environment:
-      - DISH_ADDR=192.168.100.1:9200
+      - "9451:9451"
     networks:
       - starlink-net
 

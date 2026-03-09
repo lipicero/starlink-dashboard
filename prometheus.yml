@@ -5,4 +5,4 @@ global:
 scrape_configs:
   - job_name: 'starlink'
     static_configs:
-      - targets: ['starlink-exporter:9817']
+      - targets: ['starlink-exporter:9451']
