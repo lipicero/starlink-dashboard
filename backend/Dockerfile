@@ -9,8 +9,9 @@ COPY package*.json ./
 # Install dependencies
 RUN npm install --production
 
-# Copy source code
+# Copy source code and consumption file
 COPY src/ ./src/
+COPY consumption.json ./
 
 # Expose backend port
 EXPOSE 4000
