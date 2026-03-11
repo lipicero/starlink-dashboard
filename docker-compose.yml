@@ -32,6 +32,7 @@ services:
 
   # ⚙️ Backend (procesa métricas y sirve WebSockets)
   backend:
+    build: backend
     image: ghcr.io/lipicero/starlink-dashboard-backend:latest
     container_name: starlink-backend
     restart: unless-stopped
@@ -51,6 +52,7 @@ services:
 
   # 🖥️ Frontend (Interfaz de Usuario)
   frontend:
+    build: frontend
     image: ghcr.io/lipicero/starlink-dashboard-frontend:latest
     container_name: starlink-frontend
     restart: unless-stopped
