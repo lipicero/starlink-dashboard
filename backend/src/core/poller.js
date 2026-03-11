@@ -20,7 +20,7 @@ const fetchPrometheusMetrics = async () => {
     for (const result of data.data.result) {
         const value = parseFloat(result.value[1]);
         const name = result.metric.__name__;
-        
+
         if (!isNaN(value)) {
             metricsMap[name] = value;
         }
@@ -47,12 +47,12 @@ const normalize = (metrics) => {
             motors_healthy: !metrics.starlink_dish_alert_motors_stuck,
             is_heating: !!metrics.starlink_dish_alert_is_heating,
             thermal_throttle: !!metrics.starlink_dish_alert_thermal_throttle,
-            dish_temperature: 0, // Not exported by starlink-exporter by default
+            dish_temperature: metrics.starlink_dish_temperature || 0,
             power_w: metrics.starlink_dish_power_input_watts || 0
         },
         service: {
             uptime_seconds: metrics.starlink_dish_uptime_seconds || 0,
-            downtime_seconds: 0,
+            downtime_seconds: metrics.starlink_dish_downtime_seconds_total || 0,
             obstruction_fraction: metrics.starlink_dish_fraction_obstruction_ratio || 0,
             state: metrics.starlink_dish_up ? "ONLINE" : "OFFLINE",
             update_ready: !!metrics.starlink_dish_software_update_reboot_ready,
@@ -65,7 +65,7 @@ const normalize = (metrics) => {
             packet_loss: metrics.starlink_dish_pop_ping_drop_ratio || 0,
             downlink_mbps: (metrics.starlink_dish_downlink_throughput_bps || 0) / 1000000,
             uplink_mbps: (metrics.starlink_dish_uplink_throughput_bps || 0) / 1000000,
-            eth_link_active: true, // Assume true if we can reach the dish
+            eth_link_active: !!metrics.starlink_dish_eth_connected,
             snr_valid: !!metrics.starlink_dish_snr_above_noise_floor && !metrics.starlink_dish_snr_persistently_low
         },
         installation: {

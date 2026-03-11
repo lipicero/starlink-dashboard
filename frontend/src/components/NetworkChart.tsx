@@ -1,71 +1,80 @@
 "use client";
 
+import { memo } from "react";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from "recharts";
 
 interface NetworkChartProps {
     data: { timestamp: string; downlink: number; uplink: number; latency: number }[];
 }
 
-export function NetworkChart({ data }: NetworkChartProps) {
+const CHART_MARGINS = { top: 5, right: 0, left: -20, bottom: 0 };
+
+export const NetworkChart = memo(function NetworkChart({ data }: NetworkChartProps) {
     if (!data || data.length === 0) return (
-        <div className="flex h-[350px] w-full items-center justify-center rounded-xl border border-white/5 bg-white/5 text-zinc-500">
-            Sin Datos
+        <div className="flex h-[350px] w-full items-center justify-center rounded-2xl border border-white/5 bg-zinc-900/40 text-zinc-500 backdrop-blur-xl">
+            Awaiting Data Signal...
         </div>
     );
 
     return (
         <div className="flex w-full flex-col gap-4">
             {/* Throughput Chart */}
-            <div className="h-[250px] w-full rounded-xl border border-white/5 bg-white/5 p-4 backdrop-blur-sm">
-                <h3 className="mb-4 text-sm font-medium text-zinc-400">Ancho de Banda</h3>
+            <div className="group relative h-[280px] w-full rounded-2xl border border-white/5 bg-zinc-900/40 p-6 backdrop-blur-xl transition-all hover:border-white/10">
+                <div className="absolute inset-0 bg-gradient-to-b from-white/[0.02] to-transparent rounded-2xl pointer-events-none" />
+                <h3 className="mb-6 text-xs font-black uppercase tracking-widest text-zinc-500 flex items-center justify-between">
+                    Ancho de Banda en tiempo real
+                    <div className="h-[1px] flex-grow ml-4 bg-white/5" />
+                </h3>
                 <div className="h-[180px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={data} margin={{ top: 5, right: 0, left: -20, bottom: 0 }}>
+                    <ResponsiveContainer width="100%" height="100%" debounce={150}>
+                        <AreaChart data={data} margin={CHART_MARGINS}>
                             <defs>
                                 <linearGradient id="colorDownlink" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.4} />
-                                    <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0} />
+                                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+                                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
                                 </linearGradient>
                                 <linearGradient id="colorUplink" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.4} />
+                                    <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
                                     <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
                                 </linearGradient>
                             </defs>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
+                            <CartesianGrid strokeDasharray="0" stroke="#ffffff03" vertical={false} />
                             <XAxis dataKey="timestamp" hide />
-                            <YAxis 
-                                stroke="#71717a" 
-                                fontSize={10} 
-                                tickFormatter={(val) => `${val.toFixed(0)} Mbps`} 
+                            <YAxis
+                                stroke="#52525b"
+                                fontSize={10}
+                                style={{ fontVariantNumeric: 'tabular-nums' }}
+                                tickFormatter={(val) => `${val.toFixed(0)}`}
+                                domain={[0, 'auto']}
                                 axisLine={false}
                                 tickLine={false}
                                 width={55}
                             />
                             <Tooltip
-                                contentStyle={{ backgroundColor: "#18181b", borderColor: "#27272a", borderRadius: "8px", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)" }}
-                                itemStyle={{ fontSize: "12px", color: "#e4e4e7" }}
-                                labelStyle={{ display: "none" }}
+                                contentStyle={{ backgroundColor: "#09090b", borderColor: "rgba(255,255,255,0.1)", borderRadius: "12px", fontSize: "12px", backdropFilter: "blur(8px)" }}
+                                cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 2 }}
+                                itemStyle={{ color: "#e4e4e7" }}
                                 formatter={(value: any) => [`${typeof value === 'number' ? value.toFixed(1) : value} Mbps`]}
                             />
-                            <Legend iconType="circle" wrapperStyle={{ fontSize: "12px", color: "#a1a1aa", paddingTop: "5px" }} />
+                            <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: "10px", fontWeight: "bold", color: "#71717a", textTransform: "uppercase", letterSpacing: "0.1em", paddingTop: "15px" }} />
                             <Area
-                                type="monotone"
+                                type="linear"
                                 dataKey="downlink"
-                                stroke="#0ea5e9"
+                                stroke="#3b82f6"
                                 strokeWidth={2}
                                 fillOpacity={1}
                                 fill="url(#colorDownlink)"
-                                name="Descarga"
+                                name="Downlink"
                                 isAnimationActive={false}
                             />
                             <Area
-                                type="monotone"
+                                type="linear"
                                 dataKey="uplink"
                                 stroke="#8b5cf6"
                                 strokeWidth={2}
                                 fillOpacity={1}
                                 fill="url(#colorUplink)"
-                                name="Subida"
+                                name="Uplink"
                                 isAnimationActive={false}
                             />
                         </AreaChart>
@@ -74,39 +83,43 @@ export function NetworkChart({ data }: NetworkChartProps) {
             </div>
 
             {/* Latency Chart */}
-            <div className="h-[200px] w-full rounded-xl border border-white/5 bg-white/5 p-4 backdrop-blur-sm">
-                <h3 className="mb-4 text-sm font-medium text-zinc-400">Latencia</h3>
+            <div className="group relative h-[220px] w-full rounded-2xl border border-white/5 bg-zinc-900/40 p-6 backdrop-blur-xl transition-all hover:border-white/10">
+                <div className="absolute inset-0 bg-gradient-to-b from-white/[0.02] to-transparent rounded-2xl pointer-events-none" />
+                <h3 className="mb-6 text-xs font-black uppercase tracking-widest text-zinc-500 flex items-center justify-between">
+                    Latencia
+                    <div className="h-[1px] flex-grow ml-4 bg-white/5" />
+                </h3>
                 <div className="h-[130px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={data} margin={{ top: 5, right: 0, left: -20, bottom: 0 }}>
+                    <ResponsiveContainer width="100%" height="100%" debounce={150}>
+                        <AreaChart data={data} margin={CHART_MARGINS}>
                             <defs>
                                 <linearGradient id="colorLatency" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#eab308" stopOpacity={0.4} />
-                                    <stop offset="95%" stopColor="#eab308" stopOpacity={0} />
+                                    <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3} />
+                                    <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
                                 </linearGradient>
                             </defs>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
+                            <CartesianGrid strokeDasharray="0" stroke="#ffffff03" vertical={false} />
                             <XAxis dataKey="timestamp" hide />
-                            <YAxis 
-                                stroke="#71717a" 
-                                fontSize={10} 
-                                tickFormatter={(val) => `${val.toFixed(0)} ms`}
-                                type="number"
-                                domain={['auto', 'auto']}
+                            <YAxis
+                                stroke="#52525b"
+                                fontSize={10}
+                                style={{ fontVariantNumeric: 'tabular-nums' }}
+                                tickFormatter={(val) => `${val.toFixed(0)}`}
+                                domain={[0, 'auto']}
                                 axisLine={false}
                                 tickLine={false}
                                 width={55}
                             />
                             <Tooltip
-                                contentStyle={{ backgroundColor: "#18181b", borderColor: "#27272a", borderRadius: "8px", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)" }}
-                                itemStyle={{ fontSize: "12px", color: "#e4e4e7" }}
-                                labelStyle={{ display: "none" }}
+                                contentStyle={{ backgroundColor: "#09090b", borderColor: "rgba(255,255,255,0.1)", borderRadius: "12px", fontSize: "12px", backdropFilter: "blur(8px)" }}
+                                cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 2 }}
+                                itemStyle={{ color: "#e4e4e7" }}
                                 formatter={(value: any) => [`${typeof value === 'number' ? value.toFixed(0) : value} ms`]}
                             />
                             <Area
-                                type="monotone"
+                                type="linear"
                                 dataKey="latency"
-                                stroke="#eab308"
+                                stroke="#f59e0b"
                                 strokeWidth={2}
                                 fillOpacity={1}
                                 fill="url(#colorLatency)"
@@ -119,4 +132,4 @@ export function NetworkChart({ data }: NetworkChartProps) {
             </div>
         </div>
     );
-}
+});

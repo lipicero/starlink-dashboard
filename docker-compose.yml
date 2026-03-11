@@ -4,7 +4,7 @@ services:
     image: ghcr.io/joshuasing/starlink_exporter:latest
     container_name: starlink-exporter
     restart: unless-stopped
-    command: ["-dish=192.168.100.1:9200", "-listen=:9451"]
+    command: ["-dish=192.168.100.1:9200", "-listen=:9451", "-location"]
     ports:
       - "9451:9451"
     networks:
@@ -32,9 +32,7 @@ services:
 
   # ⚙️ Backend (procesa métricas y sirve WebSockets)
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    image: ghcr.io/lipicero/starlink-dashboard-backend:latest
     container_name: starlink-backend
     restart: unless-stopped
     ports:
@@ -53,15 +51,26 @@ services:
 
   # 🖥️ Frontend (Interfaz de Usuario)
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
+    image: ghcr.io/lipicero/starlink-dashboard-frontend:latest
     container_name: starlink-frontend
     restart: unless-stopped
     ports:
       - "3000:3000"
     depends_on:
       - backend
+    networks:
+      - starlink-net
+
+  # 🤖 Watchtower (Actualiza automáticamente los contenedores cuando hay imágenes nuevas)
+  watchtower:
+    image: containrrr/watchtower
+    container_name: watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_POLL_INTERVAL=300 # Revisa cada 5 minutos
     networks:
       - starlink-net
 

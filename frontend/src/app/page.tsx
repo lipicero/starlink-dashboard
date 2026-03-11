@@ -30,21 +30,26 @@ export default function Home() {
     fetchHistory();
   }, []); // Run once on mount
 
+  // Sync history with new data point
   useEffect(() => {
-    if (data) {
-      setHistory(prev => {
-        const newPoint = {
-          timestamp: data.timestamp,
-          downlink: data.network.downlink_mbps,
-          uplink: data.network.uplink_mbps,
-          latency: data.network.latency_ms
-        };
-        // Keep last 60 points
-        const newHistory = [...prev, newPoint];
-        if (newHistory.length > 60) return newHistory.slice(newHistory.length - 60);
-        return newHistory;
-      });
-    }
+    if (!data) return;
+
+    setHistory(prev => {
+      // Avoid duplicate timestamps if any
+      if (prev.length > 0 && prev[prev.length - 1].timestamp === data.timestamp) {
+        return prev;
+      }
+
+      const newPoint = {
+        timestamp: data.timestamp,
+        downlink: data.network?.downlink_mbps || 0,
+        uplink: data.network?.uplink_mbps || 0,
+        latency: data.network?.latency_ms || 0
+      };
+
+      const newHistory = [...prev, newPoint];
+      return newHistory.length > 60 ? newHistory.slice(-60) : newHistory;
+    });
   }, [data]);
 
   return <Dashboard status={data} history={history} isConnected={isConnected} />;
