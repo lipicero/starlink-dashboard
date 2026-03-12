@@ -6,18 +6,23 @@ WORKDIR /app
 # Install pnpm
 RUN corepack enable pnpm
 
-# Copy package files
-COPY package.json pnpm-lock.yaml* ./
+# Copy workspace configuration and lockfile
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 
-# Install dependencies
-RUN pnpm install --prod --frozen-lockfile
+# Copy backend package file
+COPY backend/package.json ./backend/
 
-# Copy source code and consumption file
-COPY src/ ./src/
-COPY consumption.json ./
+# Install dependencies for backend
+RUN pnpm install --filter backend --prod --frozen-lockfile
+
+# Copy backend source code
+COPY backend ./backend
+
+# Set working directory to backend
+WORKDIR /app/backend
 
 # Expose backend port
 EXPOSE 4000
 
 # Run the app
-CMD ["node", "src/index.js"]
+CMD ["pnpm", "start"]

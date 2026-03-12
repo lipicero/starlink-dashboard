@@ -6,14 +6,20 @@ WORKDIR /app
 # Install pnpm
 RUN corepack enable pnpm
 
-# Copy package files
-COPY package.json pnpm-lock.yaml* ./
-RUN pnpm install --frozen-lockfile
+# Copy workspace configuration and lockfile
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 
-# Copy source and config files
-COPY . .
+# Copy frontend package file
+COPY frontend/package.json ./frontend/
+
+# Install dependencies for frontend
+RUN pnpm install --filter frontend --frozen-lockfile
+
+# Copy frontend source code
+COPY frontend ./frontend
 
 # Build the Next.js app
+WORKDIR /app/frontend
 RUN pnpm run build
 
 # --- Stage 2: Runner ---
@@ -21,19 +27,22 @@ FROM node:20-slim AS runner
 
 WORKDIR /app
 
-# In production, Next.js needs selective files
+# Install pnpm (needed to run pnpm start)
+RUN corepack enable pnpm
+
 ENV NODE_ENV=production
 
 # Copy necessary files from builder
-COPY --from=builder /app/package.json .
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/next.config.ts .
+COPY --from=builder /app/frontend/package.json ./frontend/
+COPY --from=builder /app/frontend/.next ./frontend/.next
+COPY --from=builder /app/frontend/public ./frontend/public
+COPY --from=builder /app/frontend/node_modules ./frontend/node_modules
+
+# Set working directory to frontend
+WORKDIR /app/frontend
 
 # Expose frontend port
 EXPOSE 3000
 
-# Start Next.js server
 # Start Next.js server
 CMD ["pnpm", "start"]
