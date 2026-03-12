@@ -1,5 +1,5 @@
 {
-    "name": "starlink-backend",
+    "name": "backend",
     "version": "1.0.0",
     "description": "Starlink Monitor Backend",
     "main": "src/index.js",

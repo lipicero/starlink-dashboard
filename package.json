@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "concurrently \"pnpm --filter backend run start\" \"pnpm --filter frontend run dev\"",
+    "start": "concurrently \"pnpm --filter backend run start\" \"pnpm --filter frontend run start\"",
+    "dev": "concurrently \"pnpm --filter backend run dev\" \"pnpm --filter frontend run dev\"",
     "build": "pnpm --filter frontend run build",
     "install-all": "pnpm install"
   },
