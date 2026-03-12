@@ -3,11 +3,14 @@ FROM node:20-slim
 
 WORKDIR /app
 
+# Install pnpm
+RUN corepack enable pnpm
+
 # Copy package files
-COPY package*.json ./
+COPY package.json pnpm-lock.yaml* ./
 
 # Install dependencies
-RUN npm install --production
+RUN pnpm install --prod --frozen-lockfile
 
 # Copy source code and consumption file
 COPY src/ ./src/

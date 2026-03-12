@@ -44,7 +44,7 @@ services:
       - PORT=4000
       - MOCK_MODE=false
     volumes:
-      - ./consumption.json:/app/consumption.json
+      - ./backend/consumption.json:/app/consumption.json
     depends_on:
       - prometheus
     networks:

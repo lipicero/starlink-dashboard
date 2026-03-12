@@ -3,15 +3,18 @@ FROM node:20-slim AS builder
 
 WORKDIR /app
 
+# Install pnpm
+RUN corepack enable pnpm
+
 # Copy package files
-COPY package*.json ./
-RUN npm install
+COPY package.json pnpm-lock.yaml* ./
+RUN pnpm install --frozen-lockfile
 
 # Copy source and config files
 COPY . .
 
 # Build the Next.js app
-RUN npm run build
+RUN pnpm run build
 
 # --- Stage 2: Runner ---
 FROM node:20-slim AS runner
@@ -32,4 +35,5 @@ COPY --from=builder /app/next.config.ts .
 EXPOSE 3000
 
 # Start Next.js server
-CMD ["npm", "start"]
+# Start Next.js server
+CMD ["pnpm", "start"]
