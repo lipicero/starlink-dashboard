@@ -12,13 +12,13 @@ COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 # Copy frontend package file
 COPY frontend/package.json ./frontend/
 
-# Install dependencies for frontend
+# Install ALL dependencies (needed for build)
 RUN pnpm install --filter frontend --frozen-lockfile
 
 # Copy frontend source code
 COPY frontend ./frontend
 
-# Build the Next.js app
+# Build the Next.js app (generates .next/standalone)
 WORKDIR /app/frontend
 RUN pnpm run build
 
@@ -27,22 +27,15 @@ FROM node:20-slim AS runner
 
 WORKDIR /app
 
-# Install pnpm (needed to run pnpm start)
-RUN corepack enable pnpm
-
 ENV NODE_ENV=production
+ENV PORT=3000
 
-# Copy necessary files from builder
-COPY --from=builder /app/frontend/package.json ./frontend/
-COPY --from=builder /app/frontend/.next ./frontend/.next
+# Copy the standalone output (includes its own node_modules tree)
+COPY --from=builder /app/frontend/.next/standalone ./
+COPY --from=builder /app/frontend/.next/static ./frontend/.next/static
 COPY --from=builder /app/frontend/public ./frontend/public
-COPY --from=builder /app/frontend/node_modules ./frontend/node_modules
 
-# Set working directory to frontend
-WORKDIR /app/frontend
-
-# Expose frontend port
 EXPOSE 3000
 
-# Start Next.js server
-CMD ["pnpm", "start"]
+# next start in standalone mode — no pnpm/npm needed
+CMD ["node", "frontend/server.js"]
