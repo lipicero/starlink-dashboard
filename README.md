@@ -1,75 +1,227 @@
-# 🛰️ Starlink Dashboard - Deep Space Edition v2.0
+# 🛰️ Starlink Dashboard
 
-Un panel de control de alto rendimiento y diseño premium diseñado para monitorear el estado y rendimiento de tu kit Starlink (específicamente optimizado para Gen 3).
+Panel de control en tiempo real para monitorear el estado y rendimiento de tu kit Starlink. Visualiza métricas de red, salud del hardware, datos de instalación y consumo de datos con una interfaz oscura y responsiva.
 
-Visualiza en tiempo real la salud de tu conexión con una estética futurista, optimizada para baja latencia visual y máxima precisión técnica.
+## 📐 Arquitectura
 
-![Screenshot de la Interfaz](https://via.placeholder.com/1200x600/020205/ffffff?text=Starlink+Dashboard+Deep+Space+v2.0)
+El proyecto es un monorepo con tres servicios principales orquestados con Docker Compose:
 
-## ✨ Características Principales
-
-- **Índice de Calidad de Enlace**: Métrica inteligente (0-100%) que combina pérdida de paquetes, latencia y obstrucciones para darte el estado real de tu conexión.
-- **Visualización Técnica Avanzada**:
-  - **Gráficos Ultra-Rápidos**: Optimizados para 0 "bounce" y mínimo uso de CPU/GPU.
-  - **Monitor Térmico**: Seguimiento de temperatura de la antena y alertas de *Thermal Throttling*.
-  - **Pérdida de Paquetes**: Visualización instantánea de estabilidad de red.
-  - **SNR y Enlace Ethernet**: Diagnóstico físico de señal y cableado.
-- **Cálculo de Promedios**: Visibilidad de promedios históricos de la sesión para bajada, subida y latencia.
-- **Diseño Responsivo**: Totalmente optimizado para móviles, tablets y monitores de alta resolución.
-- **Actualizaciones Automáticas**: Integración con **Watchtower** para que el sistema se actualice solo al detectar nuevas versiones.
-
-## 🚀 Despliegue Rápido (Cualquier PC)
-
-Ya no necesitas descargar todo el código fuente. La forma más limpia de usarlo es mediante Docker:
-
-### 1. Preparación
-Crea una carpeta llamada `starlink` y descarga los dos archivos de configuración esenciales:
-
-```bash
-mkdir starlink && cd starlink
-# Descarga la configuración
-curl -O https://raw.githubusercontent.com/lipicero/starlink-dashboard/main/docker-compose.yml
-curl -O https://raw.githubusercontent.com/lipicero/starlink-dashboard/main/prometheus.yml
+```
+starlink-dashboard/
+├── frontend/          # Next.js 16 + React 19 + Tailwind CSS v4
+├── backend/           # Node.js + Express + Socket.io
+├── prometheus/        # Configuración de Prometheus
+├── docker-compose.yml # Orquestación completa
+└── prometheus.yml     # Scrape config (intervalo: 1s)
 ```
 
-### 2. Inicio
-Ejecuta el siguiente comando para descargar las imágenes preparadas y encender el sistema:
+### Flujo de datos
+
+```
+Antena Starlink (gRPC :9200)
+        ↓
+starlink-exporter :9451   ← expone métricas en formato Prometheus
+        ↓
+Prometheus :9090           ← almacena series temporales
+        ↓
+Backend :4000              ← consulta Prometheus, normaliza y emite por WebSocket
+        ↓
+Frontend :3000             ← recibe eventos en tiempo real vía Socket.io
+```
+
+## ✨ Métricas monitoreadas
+
+### Red
+- **Descarga / Subida** (Mbps) con promedios históricos de sesión
+- **Latencia** (ms) + pérdida de paquetes (%)
+- **SNR** — calidad de señal (sincronizada / ruido alto)
+- **Enlace Ethernet** activo/inactivo
+
+### Salud del Hardware
+- **Temperatura** de la antena con alerta de Thermal Throttling
+- **Motores** — estado sano / atascado
+- **Calefacción** activa/inactiva
+- **Potencia** consumida (Watts)
+
+### Servicio
+- **Estado** Online / Offline
+- **Uptime** y downtime acumulado
+- **Obstrucciones** — fracción actual y segundos obstruido en las últimas 24h
+- **Clase de movilidad** — Fija / Móvil
+- **Ahorro de energía** (Power Save Idle)
+- **Actualización de firmware** disponible
+
+### Instalación
+- **Inclinación y Azimuth** — valores actual y objetivo
+- **GPS** — satélites visibles, validez, latitud, longitud y altitud
+
+### Consumo de datos
+- Sesión actual (GB)
+- Hoy (GB)
+- Mes (GB)
+
+### Índice de Calidad de Enlace
+Score 0–100% calculado en tiempo real combinando pérdida de paquetes, latencia, SNR y obstrucciones.
+
+### Alertas automáticas
+| Alerta | Nivel |
+|--------|-------|
+| Motores atascados | Error |
+| Límite térmico alcanzado | Warning |
+| Apagado térmico | Error |
+| Mástil no vertical | Error |
+| Antena obstruida | Warning |
+| Señal más baja de lo esperado | Warning |
+| Ubicación inesperada (restricción regional) | Error |
+| Instalación pendiente | Info |
+
+## 🚀 Despliegue rápido con Docker
+
+El método recomendado. Solo necesitás **Docker** instalado — ningún archivo extra, nada de Git.
+
+### 1. Descargar el `docker-compose.yml`
+
+**Linux / macOS:**
+```bash
+mkdir starlink && cd starlink
+curl -O https://raw.githubusercontent.com/lipicero/starlink-dashboard/main/docker-compose.yml
+```
+
+**Windows (PowerShell):**
+```powershell
+mkdir starlink; cd starlink
+Invoke-WebRequest -Uri https://raw.githubusercontent.com/lipicero/starlink-dashboard/main/docker-compose.yml -OutFile docker-compose.yml
+```
+
+> **Nota:** En PowerShell, `curl` es un alias de `Invoke-WebRequest`. Para usar el `curl` real escribí `curl.exe`, o instalá [Git for Windows](https://git-scm.com/download/win) que incluye bash y curl nativo.
+
+### 2. Levantar el stack
 
 ```bash
 docker-compose up -d
 ```
 
-### 3. Acceso
-- **Frontend**: `http://localhost:3000` (Interfaz de usuario)
-- **Backend**: `http://localhost:4000` (API y WebSockets)
-- **Prometheus**: `http://localhost:9090`
+Esto inicia cinco contenedores:
 
-## 🛠️ Tecnologías
+| Contenedor | Imagen | Puerto |
+|---|---|---|
+| `starlink-exporter` | `ghcr.io/joshuasing/starlink_exporter` | `9451` |
+| `prometheus` | `ghcr.io/lipicero/starlink-dashboard-prometheus` | `9090` |
+| `starlink-backend` | `ghcr.io/lipicero/starlink-dashboard-backend` | `4000` |
+| `starlink-frontend` | `ghcr.io/lipicero/starlink-dashboard-frontend` | `3000` |
+| `watchtower` | `containrrr/watchtower` | — |
 
-- **Frontend**: Next.js 15+, React, Tailwind CSS, Recharts (Linear Paths), Lucide Icons, Socket.io.
-- **Backend**: Node.js, Express, Socket.io, Prometheus Query API.
-- **CI/CD**: GitHub Actions con auto-build y auto-push a GHCR.
-- **Automatización**: Watchtower para actualizaciones sin intervención manual.
+### 3. Acceder
 
-## ⚙️ Configuración (.env)
+| Servicio | URL |
+|---|---|
+| **Dashboard** | http://localhost:3000 |
+| **API Backend** | http://localhost:4000 |
+| **Prometheus** | http://localhost:9090 |
 
-El sistema funciona "out of the box", pero puedes personalizar el `docker-compose.yml`:
+### 4. Parar el stack
 
-| Variable | Descripción | Valor por Defecto |
-|----------|-------------|-------------------|
-| `PROMETHEUS_URL` | URL de la API de Prometheus | `http://prometheus:9090` |
-| `POLL_INTERVAL_MS` | Frecuencia de actualización de datos | `1000` |
-| `WATCHTOWER_POLL_INTERVAL` | Frecuencia de chequeo de actualizaciones | `300` seg |
+```bash
+docker-compose down
+```
 
-## 👨‍💻 Desarrollo
+## ⚙️ Variables de entorno (Backend)
 
-Si quieres modificar el código y ver tus propios cambios reflejados:
+Copiá `backend/env.example` a `backend/.env` para desarrollo local:
 
-1. Realiza tus modificaciones en `frontend/` o `backend/`.
-2. Haz `git push` a tu repositorio.
-3. El flujo de **GitHub Actions** compilará las imágenes automáticamente.
-4. Tu dashboard instalado se actualizará solo en pocos minutos.
+| Variable | Descripción | Default |
+|---|---|---|
+| `PROMETHEUS_URL` | URL de la API de Prometheus | `http://localhost:9090` |
+| `POLL_INTERVAL_MS` | Frecuencia de consulta a Prometheus | `5000` |
+| `PORT` | Puerto del servidor backend | `4000` |
+| `MOCK_MODE` | Activar datos simulados (sin antena real) | `false` |
+
+En Docker, estas variables están definidas en el `docker-compose.yml`.
+
+## 👨‍💻 Desarrollo local
+
+### Requisitos
+
+- [Node.js](https://nodejs.org/) 20+
+- [pnpm](https://pnpm.io/) 9+
+- Una instancia de Prometheus corriendo localmente (o via Docker)
+
+### Instalación
+
+```bash
+# Clonar el repositorio
+git clone https://github.com/lipicero/starlink-dashboard.git
+cd starlink-dashboard
+
+# Instalar dependencias de todos los paquetes del workspace
+pnpm install
+```
+
+### Configurar el backend
+
+```bash
+# Windows (PowerShell)
+Copy-Item backend/env.example backend/.env
+
+# Linux / macOS
+cp backend/env.example backend/.env
+```
+
+Editá `backend/.env` con la URL de tu Prometheus.
+
+### Iniciar en modo desarrollo
+
+```bash
+# Levanta backend (nodemon) y frontend (Next.js) en paralelo
+pnpm dev
+```
+
+| Servicio | URL |
+|---|---|
+| Frontend (Next.js dev) | http://localhost:3000 |
+| Backend (Node.js) | http://localhost:4000 |
+
+### Scripts disponibles
+
+| Comando | Descripción |
+|---|---|
+| `pnpm dev` | Backend + Frontend en modo desarrollo (hot-reload) |
+| `pnpm start` | Backend + Frontend en modo producción |
+| `pnpm build` | Compilar el frontend para producción |
+| `pnpm install-all` | Instalar dependencias del workspace |
+
+## 🛠️ Stack tecnológico
+
+### Frontend (`/frontend`)
+- **Next.js 16** + **React 19** — Framework y UI
+- **TypeScript 5** — Tipado estático
+- **Tailwind CSS v4** — Estilos
+- **Recharts 3** — Gráficos de red (downlink/uplink/latencia)
+- **Socket.io Client 4** — Actualizaciones en tiempo real
+- **Lucide React** — Iconografía
+
+### Backend (`/backend`)
+- **Node.js** (ESM) + **Express 5** — Servidor HTTP
+- **Socket.io 4** — Emisión de métricas en tiempo real
+- **InfluxDB Client** — Persistencia de métricas (opcional)
+- **dotenv** — Gestión de variables de entorno
+
+### Infraestructura
+- **starlink-exporter** — Expone métricas gRPC de la antena como endpoints Prometheus
+- **Prometheus** — Almacenamiento de series temporales (scrape cada 1s)
+- **Watchtower** — Actualización automática de contenedores al detectar nuevas imágenes en GHCR
+- **GitHub Actions** — CI/CD: build y push automático de imágenes a GHCR en cada push a `main`
+
+## 🤖 CI/CD
+
+Cada push a `main` o `master` dispara el workflow `.github/workflows/docker-publish.yml`, que publica tres imágenes en GitHub Container Registry (GHCR):
+
+- `ghcr.io/lipicero/starlink-dashboard-backend:latest`
+- `ghcr.io/lipicero/starlink-dashboard-frontend:latest`
+- `ghcr.io/lipicero/starlink-dashboard-prometheus:latest`
+
+Watchtower detecta las nuevas imágenes y actualiza los contenedores en producción sin intervención manual (revisión cada 5 minutos).
 
 ---
 
-Diseñado para exploradores digitales. ¡Despegando hacia una mejor conectividad! 🚀🛰️
+Diseñado para exploradores digitales. 🚀🛰️
