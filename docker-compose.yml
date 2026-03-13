@@ -4,7 +4,7 @@ services:
     image: ghcr.io/joshuasing/starlink_exporter:latest
     container_name: starlink-exporter
     restart: unless-stopped
-    command: ["-dish=192.168.100.1:9200", "-listen=:9451", "-location"]
+    command: ["-dish=192.168.100.1:9200", "-listen=:9451"]
     ports:
       - "9451:9451"
     networks:
@@ -61,7 +61,7 @@ services:
 
   # 🤖 Watchtower (Actualiza automáticamente los contenedores cuando hay imágenes nuevas)
   watchtower:
-    image: containrrr/watchtower
+    image: containrrr/watchtower:1.5.3
     container_name: watchtower
     restart: unless-stopped
     volumes:
