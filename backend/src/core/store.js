@@ -23,10 +23,10 @@ class Store {
         try {
             if (fs.existsSync(FILE_PATH)) {
                 const data = JSON.parse(fs.readFileSync(FILE_PATH, 'utf-8'));
-                this.consumption.session_bytes = data.session_bytes || 0;
+                // session_bytes se mantiene en 0 al inicio (no se carga de disco)
                 this.consumption.day_bytes = data.day_bytes || 0;
                 this.consumption.month_bytes = data.month_bytes || 0;
-                console.log("[Store] Data de consumo recuperada del disco.");
+                console.log("[Store] Data de consumo recuperada del disco (Día/Mes).");
             }
         } catch (err) {
             console.error("[Store] No se pudo cargar el historial de consumo:", err.message);
@@ -35,7 +35,6 @@ class Store {
 
     saveConsumption() {
         const dataToSave = {
-            session_bytes: this.consumption.session_bytes,
             day_bytes: this.consumption.day_bytes,
             month_bytes: this.consumption.month_bytes
         };
