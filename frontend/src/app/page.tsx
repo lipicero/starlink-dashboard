@@ -7,7 +7,7 @@ import { StatusSnapshot } from "../types";
 
 export default function Home() {
   const { isConnected, data } = useSocket();
-  const [history, setHistory] = useState<{ timestamp: string; downlink: number; uplink: number; latency: number }[]>([]);
+  const [history, setHistory] = useState<{ timestamp: string; downlink: number; uplink: number; latency: number; power: number }[]>([]);
 
 
 
@@ -20,7 +20,8 @@ export default function Home() {
           timestamp: snap.timestamp,
           downlink: snap.network.downlink_mbps,
           uplink: snap.network.uplink_mbps,
-          latency: snap.network.latency_ms
+          latency: snap.network.latency_ms,
+          power: snap.health.power_w
         }));
         setHistory(formatted);
       } catch (e) {
@@ -44,11 +45,12 @@ export default function Home() {
         timestamp: data.timestamp,
         downlink: data.network?.downlink_mbps || 0,
         uplink: data.network?.uplink_mbps || 0,
-        latency: data.network?.latency_ms || 0
+        latency: data.network?.latency_ms || 0,
+        power: data.health?.power_w || 0
       };
 
       const newHistory = [...prev, newPoint];
-      return newHistory.length > 60 ? newHistory.slice(-60) : newHistory;
+      return newHistory.length > 720 ? newHistory.slice(-720) : newHistory;
     });
   }, [data]);
 
