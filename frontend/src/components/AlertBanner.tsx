@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Alert } from "../types";
 import { cn } from "../lib/utils";
 import { AlertTriangle, AlertCircle, Info } from "lucide-react";
@@ -6,7 +7,7 @@ interface AlertBannerProps {
     alerts: Alert[];
 }
 
-export function AlertBanner({ alerts }: AlertBannerProps) {
+export const AlertBanner = memo(function AlertBanner({ alerts }: AlertBannerProps) {
     if (!alerts || alerts.length === 0) return null;
 
     return (
@@ -15,7 +16,7 @@ export function AlertBanner({ alerts }: AlertBannerProps) {
                 <div
                     key={alert.id}
                     className={cn(
-                        "relative group flex items-center gap-3 rounded-2xl border p-4 text-sm font-bold tracking-tight overflow-hidden transition-all duration-300",
+                        "relative group flex items-center gap-3 rounded-2xl border p-4 text-sm font-bold tracking-tight overflow-hidden transition-[border-color,background-color,color,box-shadow] duration-300",
                         {
                             "border-red-500/20 bg-red-500/5 text-red-100 shadow-[0_0_20px_-10px_rgba(239,68,68,0.5)]": alert.level === "error",
                             "border-yellow-500/20 bg-yellow-500/5 text-yellow-100 shadow-[0_0_20px_-10px_rgba(234,179,8,0.5)]": alert.level === "warning",
@@ -51,4 +52,4 @@ export function AlertBanner({ alerts }: AlertBannerProps) {
             ))}
         </div>
     );
-}
+});

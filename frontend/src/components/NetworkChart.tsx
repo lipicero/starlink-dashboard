@@ -12,17 +12,17 @@ const CHART_MARGINS = { top: 5, right: 0, left: -20, bottom: 0 };
 export const NetworkChart = memo(function NetworkChart({ data }: NetworkChartProps) {
     if (!data || data.length === 0) return (
         <div className="flex h-[350px] w-full items-center justify-center rounded-2xl border border-white/5 bg-zinc-900/40 text-zinc-500 backdrop-blur-xl">
-            Awaiting Data Signal...
+            Awaiting Data Signal…
         </div>
     );
 
     return (
         <div className="flex w-full flex-col gap-4">
             {/* Throughput Chart */}
-            <div className="group relative h-[280px] w-full rounded-2xl border border-white/5 bg-zinc-900/40 p-6 backdrop-blur-xl transition-all hover:border-white/10">
+            <div className="group relative h-[280px] w-full rounded-2xl border border-white/5 bg-zinc-900/40 p-6 backdrop-blur-xl transition-[border-color] duration-300 hover:border-white/10">
                 <div className="absolute inset-0 bg-gradient-to-b from-white/[0.02] to-transparent rounded-2xl pointer-events-none" />
                 <h3 className="mb-6 text-xs font-black uppercase tracking-widest text-zinc-500 flex items-center justify-between">
-                    Ancho de Banda en tiempo real
+                    Ancho de Banda en Tiempo Real
                     <div className="h-[1px] flex-grow ml-4 bg-white/5" />
                 </h3>
                 <div className="h-[180px] w-full">
@@ -83,7 +83,7 @@ export const NetworkChart = memo(function NetworkChart({ data }: NetworkChartPro
             </div>
 
             {/* Latency Chart */}
-            <div className="group relative h-[220px] w-full rounded-2xl border border-white/5 bg-zinc-900/40 p-6 backdrop-blur-xl transition-all hover:border-white/10">
+            <div className="group relative h-[220px] w-full rounded-2xl border border-white/5 bg-zinc-900/40 p-6 backdrop-blur-xl transition-[border-color] duration-300 hover:border-white/10">
                 <div className="absolute inset-0 bg-gradient-to-b from-white/[0.02] to-transparent rounded-2xl pointer-events-none" />
                 <h3 className="mb-6 text-xs font-black uppercase tracking-widest text-zinc-500 flex items-center justify-between">
                     Latencia

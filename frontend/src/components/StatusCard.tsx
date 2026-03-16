@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { cn } from "../lib/utils";
 
 interface StatusCardProps {
@@ -10,10 +11,10 @@ interface StatusCardProps {
     children?: React.ReactNode;
 }
 
-export function StatusCard({ label, value, unit, icon, className, children }: StatusCardProps) {
+export const StatusCard = memo(function StatusCard({ label, value, unit, icon, className, children }: StatusCardProps) {
     return (
         <div className={cn(
-            "group relative overflow-hidden rounded-2xl border border-white/10 bg-zinc-900/40 p-5 backdrop-blur-md transition-all duration-300 hover:border-white/20 hover:bg-zinc-900/60 hover:shadow-[0_0_30px_-10px_rgba(255,255,255,0.1)]",
+            "group relative overflow-hidden rounded-2xl border border-white/10 bg-zinc-900/40 p-5 backdrop-blur-md transition-[border-color,background-color,box-shadow] duration-300 hover:border-white/20 hover:bg-zinc-900/60 hover:shadow-[0_0_30px_-10px_rgba(255,255,255,0.1)]",
             className
         )}>
             {/* Subtle Gradient Overlay */}
@@ -36,4 +37,4 @@ export function StatusCard({ label, value, unit, icon, className, children }: St
             </div>
         </div>
     );
-}
+});

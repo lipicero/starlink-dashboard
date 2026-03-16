@@ -37,7 +37,7 @@ const normalize = (metrics) => {
     if (metrics.starlink_dish_alert_thermal_shutdown) alerts.push({ id: 'thermal_shutdown', message: 'Apagado Térmico', level: 'error' });
     if (metrics.starlink_dish_alert_mast_not_near_vertical) alerts.push({ id: 'mast_alignment', message: 'Mástil No Vertical', level: 'error' });
     if (metrics.starlink_dish_currently_obstructed) alerts.push({ id: 'obstructed', message: 'Antena Obstruida', level: 'warning' });
-    if (metrics.starlink_dish_alert_signal_lower_than_predicted) alerts.push({ id: 'signal_low', message: 'Señal más baja de lo esperado', level: 'warning' });
+    if (metrics.starlink_dish_alert_signal_lower_than_predicted) alerts.push({ id: 'signal_low', message: 'Señal Baja de lo Esperado', level: 'warning' });
     if (metrics.starlink_dish_alert_unexpected_location) alerts.push({ id: 'unexpected_location', message: 'Ubicación Inesperada (Restricción Regional)', level: 'error' });
     if (metrics.starlink_dish_alert_install_pending) alerts.push({ id: 'install_pending', message: 'Instalación Pendiente', level: 'info' });
 
@@ -54,10 +54,10 @@ const normalize = (metrics) => {
             uptime_seconds: metrics.starlink_dish_uptime_seconds || 0,
             downtime_seconds: metrics.starlink_dish_downtime_seconds_total || 0,
             obstruction_fraction: metrics.starlink_dish_fraction_obstruction_ratio || 0,
-            state: metrics.starlink_dish_up ? "ONLINE" : "OFFLINE",
+            state: metrics.starlink_dish_up ? "En Línea" : "Fuera de Línea",
             update_ready: !!metrics.starlink_dish_software_update_reboot_ready,
             obstructed_seconds_24h: metrics.starlink_dish_last_24h_obstructed_seconds || 0,
-            mobility_class: typeof metrics.starlink_dish_mobility_class !== 'undefined' ? metrics.starlink_dish_mobility_class.toString() : "Fixed",
+            mobility_class: typeof metrics.starlink_dish_mobility_class !== 'undefined' ? metrics.starlink_dish_mobility_class.toString() : "0",
             power_save_idle: !!metrics.starlink_dish_alert_is_power_save_idle
         },
         network: {

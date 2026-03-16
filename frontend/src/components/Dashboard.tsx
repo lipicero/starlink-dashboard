@@ -11,6 +11,8 @@ const NetworkChart = dynamic(() => import("./NetworkChart").then(mod => mod.Netw
     loading: () => <div className="h-[350px] w-full animate-pulse rounded-2xl border border-white/5 bg-zinc-900/40" />
 });
 
+const SAMPLE_LIMITS = [60, 300, 600, 720];
+
 interface DashboardProps {
     status: StatusSnapshot | null;
     history: { timestamp: string; downlink: number; uplink: number; latency: number; power: number }[];
@@ -35,54 +37,75 @@ export const Dashboard = memo(function Dashboard({ status, history, isConnected 
 
     const [sampleLimit, setSampleLimit] = useState(60);
 
-    const filteredHistory = useMemo(() => history.slice(-sampleLimit), [history, sampleLimit]);
+    // Dynamic downsampling: If we have too many points, show fewer but averaged
+    const filteredHistory = useMemo(() => {
+        const lastPoints = history.slice(-sampleLimit);
+        // If we show more than 120 points, sample every Nth point to keep performance high
+        const maxPointsToShow = 120;
+        if (lastPoints.length <= maxPointsToShow) return lastPoints;
+        
+        const step = Math.ceil(lastPoints.length / maxPointsToShow);
+        return lastPoints.filter((_, i) => i % step === 0);
+    }, [history, sampleLimit]);
 
-    const avgDownlink = filteredHistory.length > 0
-        ? filteredHistory.reduce((acc, curr) => acc + curr.downlink, 0) / filteredHistory.length
-        : 0;
-    const avgUplink = filteredHistory.length > 0
-        ? filteredHistory.reduce((acc, curr) => acc + curr.uplink, 0) / filteredHistory.length
-        : 0;
-    const avgLatency = filteredHistory.length > 0
-        ? filteredHistory.reduce((acc, curr) => acc + curr.latency, 0) / filteredHistory.length
-        : 0;
-    const avgPower = filteredHistory.length > 0
-        ? filteredHistory.reduce((acc, curr) => acc + curr.power, 0) / filteredHistory.length
-        : 0;
+    const { avgDownlink, avgUplink, avgLatency, avgPower } = useMemo(() => {
+        const lastPoints = history.slice(-sampleLimit); // Use full slice for averages for precision
+        if (lastPoints.length === 0) return { avgDownlink: 0, avgUplink: 0, avgLatency: 0, avgPower: 0 };
+        const sum = lastPoints.reduce((acc, curr) => ({
+            down: acc.down + curr.downlink,
+            up: acc.up + curr.uplink,
+            lat: acc.lat + curr.latency,
+            pwr: acc.pwr + curr.power
+        }), { down: 0, up: 0, lat: 0, pwr: 0 });
+        
+        return {
+            avgDownlink: sum.down / lastPoints.length,
+            avgUplink: sum.up / lastPoints.length,
+            avgLatency: sum.lat / lastPoints.length,
+            avgPower: sum.pwr / lastPoints.length
+        };
+    }, [history, sampleLimit]);
 
     // Quality Score Calculation
-    const calculateQualityScore = () => {
+    const qualityScore = useMemo(() => {
         let score = 100;
         if (network.packet_loss > 0) score -= (network.packet_loss * 100) * 5;
         if (network.latency_ms > 50) score -= (network.latency_ms - 50) / 2;
         if (!network.snr_valid) score -= 15;
         if (service.obstruction_fraction > 0) score -= service.obstruction_fraction * 200;
         return Math.floor(Math.max(0, Math.min(100, score)));
-    };
-
-    const qualityScore = calculateQualityScore();
+    }, [network.packet_loss, network.latency_ms, network.snr_valid, service.obstruction_fraction]);
 
     return (
         <div className="min-h-screen bg-[#020205] p-6 text-zinc-100 selection:bg-blue-500/30 relative overflow-hidden">
             {/* Ambient Background Effects */}
-            <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/10 rounded-full blur-[120px] pointer-events-none" />
-            <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-600/10 rounded-full blur-[120px] pointer-events-none" />
+            <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none mix-blend-overlay" />
+            <div className="absolute inset-0 bg-grid-white/[0.02] bg-[size:50px_50px] pointer-events-none" />
+            
+            <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-blue-600/10 rounded-full blur-[120px] pointer-events-none" />
+            <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-purple-600/10 rounded-full blur-[120px] pointer-events-none" />
+            
+            {/* Floating Stars/Particles */}
+            <div className="absolute top-1/4 left-1/3 w-1 h-1 bg-white rounded-full animate-ping opacity-20" />
+            <div className="absolute top-2/3 left-1/4 w-1 h-1 bg-white rounded-full animate-ping opacity-10" style={{ animationDelay: '1.5s' }} />
+            <div className="absolute top-1/2 right-1/4 w-1 h-1 bg-white rounded-full animate-ping opacity-30" style={{ animationDelay: '3s' }} />
 
             <div className="mx-auto max-w-7xl space-y-8 relative z-10">
                 {/* Header */}                <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between py-4">
                     <div className="flex items-center gap-4">
                         <div>
                             <h1 className="text-xl sm:text-2xl font-black tracking-tighter text-white bg-clip-text text-transparent bg-gradient-to-r from-white to-zinc-500 text-center sm:text-left">
-                                STARLINK <span className="text-blue-500">DASHBOARD</span>
+                                Starlink <span className="text-blue-500">Dashboard</span>
                             </h1>
                         </div>
                         <div className="hidden md:flex ml-4 items-center bg-white/[0.03] border border-white/5 rounded-full p-1 self-center">
-                            {[60, 300, 600, 720].map((limit) => (
+                            {SAMPLE_LIMITS.map((limit) => (
                                 <button
                                     key={limit}
                                     onClick={() => setSampleLimit(limit)}
+                                    aria-label={`Ver historial de ${limit === 60 ? "1 minuto" : limit === 300 ? "5 minutos" : limit === 600 ? "10 minutos" : "tiempo máximo"}`}
                                     className={cn(
-                                        "px-3 py-1 text-[10px] font-bold rounded-full transition-all",
+                                        "px-3 py-1 text-[10px] font-bold rounded-full transition-[background-color,color,box-shadow] duration-200",
                                         sampleLimit === limit 
                                             ? "bg-blue-600 text-white shadow-lg shadow-blue-900/40" 
                                             : "text-zinc-500 hover:text-white"
@@ -105,21 +128,21 @@ export const Dashboard = memo(function Dashboard({ status, history, isConnected 
                             <div className="hidden md:block h-1.5 w-20 lg:w-24 bg-zinc-800 rounded-full overflow-hidden">
                                 <div
                                     className={cn(
-                                        "h-full transition-all duration-1000",
+                                        "h-full transition-[width] duration-500",
                                         qualityScore > 80 ? "bg-green-500" : qualityScore > 50 ? "bg-yellow-500" : "bg-red-500"
                                     )}
                                     style={{ width: `${qualityScore}%` }}
                                 />
                             </div>
                         </div>
-                        {service.update_ready && (
+                        {service.update_ready ? (
                             <div className="flex items-center gap-2 rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-blue-400 animate-pulse">
                                 <ArrowUpCircle className="h-3 w-3" />
                                 Actualización Lista
                             </div>
-                        )}
+                        ) : null}
                         <div className={cn(
-                            "flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-bold border transition-all duration-500",
+                            "flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-bold border transition-[border-color,background-color,color,shadow] duration-500",
                             isConnected
                                 ? 'border-green-500/20 bg-green-500/5 text-green-400 shadow-[0_0_15px_-5px_rgba(34,197,94,0.3)]'
                                 : 'border-red-500/20 bg-red-500/5 text-red-400 shadow-[0_0_15px_-5px_rgba(239,68,68,0.3)]'
@@ -128,7 +151,7 @@ export const Dashboard = memo(function Dashboard({ status, history, isConnected 
                                 "h-2 w-2 rounded-full animate-pulse",
                                 isConnected ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]'
                             )} />
-                            {isConnected ? 'SISTEMA ONLINE' : 'SISTEMA OFFLINE'}
+                            {isConnected ? 'Sistema Online' : 'Sistema Offline'}
                         </div>
                     </div>
                 </header>
@@ -138,11 +161,11 @@ export const Dashboard = memo(function Dashboard({ status, history, isConnected 
                 <div className="grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-5">
                     <StatusCard
                         label="Estado del Sistema"
-                        value={service.state === "En Linea" ? "Activo" : service.state === "Fuera de Linea" ? "Inactivo" : service.state}
+                        value={service.state === "En Línea" ? "Activo" : service.state === "Fuera de Línea" ? "Inactivo" : service.state}
                         icon={<Activity aria-hidden="true" className="h-4 w-4" />}
                         className={cn(
-                            "transition-all duration-500",
-                            service.state === "En Linea" ? "border-red-500/20 bg-red-500/5" : "border-green-500/20 bg-green-500/5"
+                            "transition-[border-color,background-color] duration-500",
+                            service.state === "En Línea" ? "border-green-500/20 bg-green-500/5" : "border-red-500/20 bg-red-500/5"
                         )}
                     />
                     <StatusCard
@@ -157,7 +180,7 @@ export const Dashboard = memo(function Dashboard({ status, history, isConnected 
                                     "font-mono font-bold",
                                     service.obstruction_fraction > 0.05 ? "text-red-400" : "text-green-400"
                                 )}>
-                                    {service.obstruction_fraction < 0.01 ? "Óptima" : service.obstruction_fraction < 0.05 ? "Normal" : "Critica"}
+                                    {service.obstruction_fraction < 0.01 ? "Óptima" : service.obstruction_fraction < 0.05 ? "Normal" : "Crítica"}
                                 </span>
                             </div>
                         </div>
@@ -216,7 +239,7 @@ export const Dashboard = memo(function Dashboard({ status, history, isConnected 
 
                     <div className="space-y-4">
                         {/* Health Panel */}
-                        <div className="group relative rounded-2xl border border-white/5 bg-zinc-900/40 p-6 backdrop-blur-xl transition-all hover:border-white/10">
+                        <div className="group relative rounded-2xl border border-white/5 bg-zinc-900/40 p-6 backdrop-blur-xl transition-[border-color] duration-300 hover:border-white/10">
                             <div className="absolute inset-0 bg-gradient-to-b from-white/[0.02] to-transparent rounded-2xl pointer-events-none" />
                             <h3 className="mb-6 text-xs font-black uppercase tracking-widest text-zinc-500 flex items-center justify-between">
                                 Salud del Sistema
@@ -267,11 +290,15 @@ export const Dashboard = memo(function Dashboard({ status, history, isConnected 
                                 </div>
                                 <div className="flex items-center justify-between">
                                     <span className="text-zinc-500">Uptime</span>
-                                    <span className="font-mono text-zinc-100 italic [font-variant-numeric:tabular-nums]">{(service.uptime_seconds / 3600).toFixed(1)}h</span>
+                                    <span className="font-mono text-zinc-100 italic [font-variant-numeric:tabular-nums]">
+                                        {new Intl.NumberFormat('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(service.uptime_seconds / 3600)} h
+                                    </span>
                                 </div>
                                 <div className="flex items-center justify-between">
                                     <span className="text-zinc-500">Obstruido (24h)</span>
-                                    <span className="font-mono text-zinc-300 [font-variant-numeric:tabular-nums]">{(service.obstructed_seconds_24h / 60).toFixed(1)} min</span>
+                                    <span className="font-mono text-zinc-300 [font-variant-numeric:tabular-nums]">
+                                        {new Intl.NumberFormat('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(service.obstructed_seconds_24h / 60)} min
+                                    </span>
                                 </div>
                                 <div className="flex items-center justify-between border-t border-white/5 pt-4 mt-2">
                                     <div className="flex flex-col">
@@ -287,7 +314,7 @@ export const Dashboard = memo(function Dashboard({ status, history, isConnected 
                         </div>
 
                         {/* Installation Panel */}
-                        <div className="group relative rounded-2xl border border-white/5 bg-zinc-900/40 p-6 backdrop-blur-xl transition-all hover:border-white/10">
+                        <div className="group relative rounded-2xl border border-white/5 bg-zinc-900/40 p-6 backdrop-blur-xl transition-[border-color] duration-300 hover:border-white/10">
                             <div className="absolute inset-0 bg-gradient-to-b from-white/[0.02] to-transparent rounded-2xl pointer-events-none" />
                             <h3 className="mb-6 text-xs font-black uppercase tracking-widest text-zinc-500 flex items-center justify-between">
                                 <div className="flex items-center gap-2">
@@ -298,11 +325,15 @@ export const Dashboard = memo(function Dashboard({ status, history, isConnected 
                             <div className="space-y-4 text-sm font-medium">
                                 <div className="flex items-center justify-between">
                                     <span className="text-zinc-500">Inclinación (Act / Op)</span>
-                                    <span className="font-mono text-zinc-100 [font-variant-numeric:tabular-nums]">{installation.tilt_current.toFixed(1)}° / <span className="text-blue-500">{installation.tilt_target.toFixed(1)}°</span></span>
+                                    <span className="font-mono text-zinc-100 [font-variant-numeric:tabular-nums]">
+                                        {new Intl.NumberFormat('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(installation.tilt_current)}° / <span className="text-blue-500">{new Intl.NumberFormat('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(installation.tilt_target)}°</span>
+                                    </span>
                                 </div>
                                 <div className="flex items-center justify-between">
                                     <span className="text-zinc-500">Azimuth (Act / Op)</span>
-                                    <span className="font-mono text-zinc-100 [font-variant-numeric:tabular-nums]">{installation.azimuth_current.toFixed(1)}° / <span className="text-blue-500">{installation.azimuth_target.toFixed(1)}°</span></span>
+                                    <span className="font-mono text-zinc-100 [font-variant-numeric:tabular-nums]">
+                                        {new Intl.NumberFormat('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(installation.azimuth_current)}° / <span className="text-blue-500">{new Intl.NumberFormat('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(installation.azimuth_target)}°</span>
+                                    </span>
                                 </div>
                                 <div className="flex items-center justify-between border-t border-white/5 pt-4 mt-2">
                                     <span className="text-zinc-500">Sats / GPS</span>
@@ -318,21 +349,21 @@ export const Dashboard = memo(function Dashboard({ status, history, isConnected 
                                     <span className="text-[10px] uppercase tracking-widest text-zinc-500 text-center">Datos de ubicación precisa</span>
                                     <div className="flex justify-between items-center bg-black/40 p-2 rounded-lg font-mono text-[11px] [font-variant-numeric:tabular-nums]">
                                         <span className="text-zinc-600">LAT:</span>
-                                        <span className="text-zinc-200">{installation.latitude.toFixed(5)}°</span>
+                                        <span className="text-zinc-200">{new Intl.NumberFormat('es-AR', { minimumFractionDigits: 5, maximumFractionDigits: 5 }).format(installation.latitude)}°</span>
                                         <span className="w-1 h-1 rounded-full bg-white/10" />
                                         <span className="text-zinc-600">LON:</span>
-                                        <span className="text-zinc-200">{installation.longitude.toFixed(5)}°</span>
+                                        <span className="text-zinc-200">{new Intl.NumberFormat('es-AR', { minimumFractionDigits: 5, maximumFractionDigits: 5 }).format(installation.longitude)}°</span>
                                     </div>
                                     <div className="flex justify-between items-center px-2">
                                         <span className="text-zinc-600 text-[11px]">ALTITUD:</span>
-                                        <span className="text-zinc-100 font-mono font-bold [font-variant-numeric:tabular-nums]">{installation.altitude_m.toFixed(1)}m</span>
+                                        <span className="text-zinc-100 font-mono font-bold [font-variant-numeric:tabular-nums]">{new Intl.NumberFormat('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(installation.altitude_m)} m</span>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
                         {/* Consumption Panel */}
-                        <div className="group relative rounded-2xl border border-white/5 bg-zinc-900/40 p-6 backdrop-blur-xl transition-all hover:border-white/10">
+                        <div className="group relative rounded-2xl border border-white/5 bg-zinc-900/40 p-6 backdrop-blur-xl transition-[border-color] duration-300 hover:border-white/10">
                             <div className="absolute inset-0 bg-gradient-to-b from-white/[0.02] to-transparent rounded-2xl pointer-events-none" />
                             <h3 className="mb-6 text-xs font-black uppercase tracking-widest text-zinc-500 flex items-center justify-between">
                                 <div className="flex items-center gap-2">
@@ -341,8 +372,8 @@ export const Dashboard = memo(function Dashboard({ status, history, isConnected 
                                 <div className="h-[1px] flex-grow ml-4 bg-white/5" />
                             </h3>
                             <div className="space-y-4">
-                                <div className="group relative overflow-hidden rounded-2xl bg-white/[0.03] border border-white/5 p-5 transition-all hover:bg-white/[0.06]">
-                                    <div className="absolute -right-4 -top-4 w-24 h-24 bg-purple-500/10 rounded-full blur-2xl group-hover:bg-purple-500/20 transition-all duration-700" />
+                                <div className="group relative overflow-hidden rounded-2xl bg-white/[0.03] border border-white/5 p-5 transition-[background-color] duration-300 hover:bg-white/[0.06]">
+                                    <div className="absolute -right-4 -top-4 w-24 h-24 bg-purple-500/10 rounded-full blur-2xl group-hover:bg-purple-500/20 transition-[background-color] duration-700" />
                                     <p className="text-[10px] items-center mb-1 flex gap-2 font-black uppercase tracking-widest text-zinc-500">
                                         Sesión Actual
                                         <span className="h-1 w-1 rounded-full bg-purple-500" />
@@ -351,18 +382,18 @@ export const Dashboard = memo(function Dashboard({ status, history, isConnected 
                                         <p className="font-mono text-4xl font-black text-white leading-none [font-variant-numeric:tabular-nums]">
                                             {(status.consumption?.session_gb || 0).toFixed(2)}
                                         </p>
-                                        <span className="text-xs font-bold text-zinc-500 uppercase">Gigabytes</span>
+                                        <span className="text-xs font-bold text-zinc-500 uppercase">GB</span>
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
-                                    <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-4 transition-all hover:bg-white/[0.04]">
+                                    <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-4 transition-[background-color] duration-300 hover:bg-white/[0.04]">
                                         <p className="text-[10px] font-black uppercase tracking-widest text-zinc-600 mb-1">Hoy</p>
                                         <p className="font-mono text-xl font-bold text-zinc-100 flex items-baseline gap-1 [font-variant-numeric:tabular-nums]">
                                             {(status.consumption?.day_gb || 0).toFixed(2)}
                                             <span className="text-[10px] text-zinc-600">GB</span>
                                         </p>
                                     </div>
-                                    <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-4 transition-all hover:bg-white/[0.04]">
+                                    <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-4 transition-[background-color] duration-300 hover:bg-white/[0.04]">
                                         <p className="text-[10px] font-black uppercase tracking-widest text-zinc-600 mb-1">Mes</p>
                                         <p className="font-mono text-xl font-bold text-zinc-100 flex items-baseline gap-1 [font-variant-numeric:tabular-nums]">
                                             {(status.consumption?.month_gb || 0).toFixed(2)}

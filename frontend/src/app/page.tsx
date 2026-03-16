@@ -1,58 +1,45 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import { Dashboard } from "../components/Dashboard";
-import { useSocket } from "../hooks/useSocket";
+import HomeClient from "./HomeClient";
 import { StatusSnapshot } from "../types";
 
-export default function Home() {
-  const { isConnected, data } = useSocket();
-  const [history, setHistory] = useState<{ timestamp: string; downlink: number; uplink: number; latency: number; power: number }[]>([]);
+// Esta función se ejecuta en el SERVIDOR (SSR)
+async function getInitialData() {
+  try {
+    const [statusRes, historyRes] = await Promise.all([
+      fetch("http://localhost:4000/api/status", { cache: 'no-store' }),
+      fetch("http://localhost:4000/api/history", { cache: 'no-store' })
+    ]);
+    
+    let initialStatus: StatusSnapshot | null = null;
+    let initialHistory: { timestamp: string; downlink: number; uplink: number; latency: number; power: number }[] = [];
 
-
-
-  useEffect(() => {
-    async function fetchHistory() {
-      try {
-        const res = await fetch(`http://${window.location.hostname}:4000/api/history`);
-        const historyData: StatusSnapshot[] = await res.json();
-        const formatted = historyData.map(snap => ({
-          timestamp: snap.timestamp,
-          downlink: snap.network.downlink_mbps,
-          uplink: snap.network.uplink_mbps,
-          latency: snap.network.latency_ms,
-          power: snap.health.power_w
-        }));
-        setHistory(formatted);
-      } catch (e) {
-        console.error("Failed to fetch history", e);
-      }
+    if (statusRes.ok) {
+      initialStatus = await statusRes.json();
     }
-    fetchHistory();
-  }, []); // Run once on mount
 
-  // Sync history with new data point
-  useEffect(() => {
-    if (!data) return;
+    if (historyRes.ok) {
+      const historyData: StatusSnapshot[] = await historyRes.json();
+      initialHistory = historyData.map(snap => ({
+        timestamp: snap.timestamp,
+        downlink: snap.network.downlink_mbps,
+        uplink: snap.network.uplink_mbps,
+        latency: snap.network.latency_ms,
+        power: snap.health.power_w
+      }));
+    }
+    
+    return { initialStatus, initialHistory };
+  } catch (e) {
+    console.error("Error fetching initial data on server:", e);
+    return { initialStatus: null, initialHistory: [] };
+  }
+}
 
-    setHistory(prev => {
-      // Avoid duplicate timestamps if any
-      if (prev.length > 0 && prev[prev.length - 1].timestamp === data.timestamp) {
-        return prev;
-      }
+export default async function Home() {
+  const { initialStatus, initialHistory } = await getInitialData();
 
-      const newPoint = {
-        timestamp: data.timestamp,
-        downlink: data.network?.downlink_mbps || 0,
-        uplink: data.network?.uplink_mbps || 0,
-        latency: data.network?.latency_ms || 0,
-        power: data.health?.power_w || 0
-      };
-
-      const newHistory = [...prev, newPoint];
-      return newHistory.length > 720 ? newHistory.slice(-720) : newHistory;
-    });
-  }, [data]);
-
-  return <Dashboard status={data} history={history} isConnected={isConnected} />;
+  return (
+    <main>
+      <HomeClient initialStatus={initialStatus} initialHistory={initialHistory} />
+    </main>
+  );
 }
