@@ -239,34 +239,6 @@ export const Dashboard = memo(function Dashboard({ status, history, isConnected 
                                     </span>
                                 </div>
                                 <div className="flex items-center justify-between">
-                                    <span className="text-zinc-500">Enlace Ethernet</span>
-                                    <span className={cn(
-                                        "flex items-center gap-1.5 font-bold uppercase text-[10px]",
-                                        network.eth_link_active ? "text-blue-400" : "text-red-400"
-                                    )}>
-                                        <Link2 className="h-3 w-3" />
-                                        {network.eth_link_active ? "Conectado" : "Desconectado"}
-                                    </span>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <span className="text-zinc-500">Temperatura</span>
-                                    <div className="flex items-center gap-2">
-                                        <span className={cn(
-                                            "font-mono text-zinc-300",
-                                            health.dish_temperature > 60 ? "text-orange-400" : ""
-                                        )}>
-                                            {health.dish_temperature.toFixed(1)}°C
-                                        </span>
-                                        {health.thermal_throttle && (
-                                            <span className="animate-pulse text-[10px] font-black text-red-500">THROTTLE!</span>
-                                        )}
-                                        <Thermometer className={cn(
-                                            "h-3 w-3",
-                                            health.dish_temperature > 60 ? "text-orange-500" : "text-zinc-600"
-                                        )} />
-                                    </div>
-                                </div>
-                                <div className="flex items-center justify-between">
                                     <span className="text-zinc-500">Calidad Señal (SNR)</span>
                                     <div className="flex items-center gap-2">
                                         <Signal className={cn(
@@ -296,10 +268,6 @@ export const Dashboard = memo(function Dashboard({ status, history, isConnected 
                                 <div className="flex items-center justify-between">
                                     <span className="text-zinc-500">Uptime</span>
                                     <span className="font-mono text-zinc-100 italic [font-variant-numeric:tabular-nums]">{(service.uptime_seconds / 3600).toFixed(1)}h</span>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <span className="text-zinc-500">Downtime Global</span>
-                                    <span className="font-mono text-red-400 [font-variant-numeric:tabular-nums]">{service.downtime_seconds}s</span>
                                 </div>
                                 <div className="flex items-center justify-between">
                                     <span className="text-zinc-500">Obstruido (24h)</span>
