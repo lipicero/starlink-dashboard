@@ -1,13 +1,18 @@
 import HomeClient from "./HomeClient";
 import { StatusSnapshot } from "../types";
 
+export const dynamic = 'force-dynamic';
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
 // Esta función se ejecuta en el SERVIDOR (SSR)
 async function getInitialData() {
   try {
     const [statusRes, historyRes] = await Promise.all([
-      fetch("http://localhost:4000/api/status", { cache: 'no-store' }),
-      fetch("http://localhost:4000/api/history", { cache: 'no-store' })
+      fetch(`${API_BASE_URL}/api/status`, { cache: 'no-store' }),
+      fetch(`${API_BASE_URL}/api/history`, { cache: 'no-store' })
     ]);
+
     
     let initialStatus: StatusSnapshot | null = null;
     let initialHistory: { timestamp: string; downlink: number; uplink: number; latency: number; power: number }[] = [];

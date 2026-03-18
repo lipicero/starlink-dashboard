@@ -22,6 +22,9 @@ app.use(express.json());
 const PORT = process.env.PORT || 4000;
 
 // REST Endpoints
+app.get('/', (req, res) => {
+    res.send('Servidor corriendo');
+});
 app.get('/api/status', (req, res) => {
     const snapshot = store.getLatest();
     if (!snapshot) {

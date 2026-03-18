@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useState } from "react";
+import { memo, useState, useEffect, useRef } from "react";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from "recharts";
 import type { ValueType } from "recharts/types/component/DefaultTooltipContent";
 
@@ -14,6 +14,21 @@ export const NetworkChart = memo(function NetworkChart({ data }: NetworkChartPro
     const [isHovering, setIsHovering] = useState(false);
     const [prevData, setPrevData] = useState(data);
     const [displayData, setDisplayData] = useState(data);
+    const chartRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+            if (chartRef.current && !chartRef.current.contains(event.target as Node)) {
+                setIsHovering(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        document.addEventListener('touchstart', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            document.removeEventListener('touchstart', handleClickOutside);
+        };
+    }, []);
 
     // deriving state during render ("You might not need an effect" tip)
     if (data !== prevData) {
@@ -31,9 +46,12 @@ export const NetworkChart = memo(function NetworkChart({ data }: NetworkChartPro
 
     return (
         <div 
-            className="flex w-full flex-col gap-4"
+            ref={chartRef}
+            className="flex w-full flex-col gap-4 touch-pan-y"
+            style={{ touchAction: 'pan-y' }}
             onMouseEnter={() => setIsHovering(true)}
             onMouseLeave={() => setIsHovering(false)}
+            onTouchStart={() => setIsHovering(true)}
         >
             {/* Throughput Chart */}
             <div className="group relative h-[280px] w-full rounded-2xl border border-white/5 bg-zinc-900/40 p-6 backdrop-blur-xl transition-[border-color] duration-300 hover:border-white/10">
@@ -62,20 +80,22 @@ export const NetworkChart = memo(function NetworkChart({ data }: NetworkChartPro
                                 fontSize={10}
                                 style={{ fontVariantNumeric: 'tabular-nums' }}
                                 tickFormatter={(val) => `${val.toFixed(0)}`}
-                                domain={[0, 'auto']}
+                                domain={[0, (dataMax: number) => Math.max(50, Math.ceil(dataMax / 50) * 50)]}
                                 axisLine={false}
                                 tickLine={false}
                                 width={55}
                             />
-                            <Tooltip
-                                contentStyle={{ backgroundColor: "#09090b", borderColor: "rgba(255,255,255,0.1)", borderRadius: "12px", fontSize: "12px", backdropFilter: "blur(8px)" }}
-                                cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 2 }}
-                                itemStyle={{ color: "#e4e4e7" }}
-                                formatter={(value: ValueType | undefined) => {
-                                    if (value == null) return ["No data"];
-                                    return [`${typeof value === 'number' ? value.toFixed(1) : value} Mbps`];
-                                }}
-                            />
+                            {isHovering && (
+                                <Tooltip
+                                    contentStyle={{ backgroundColor: "#09090b", borderColor: "rgba(255,255,255,0.1)", borderRadius: "12px", fontSize: "12px", backdropFilter: "blur(8px)" }}
+                                    cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 2 }}
+                                    itemStyle={{ color: "#e4e4e7" }}
+                                    formatter={(value: ValueType | undefined) => {
+                                        if (value == null) return ["No data"];
+                                        return [`${typeof value === 'number' ? value.toFixed(1) : value} Mbps`];
+                                    }}
+                                />
+                            )}
                             <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: "10px", fontWeight: "bold", color: "#71717a", textTransform: "uppercase", letterSpacing: "0.1em", paddingTop: "15px" }} />
                             <Area
                                 type="linear"
@@ -125,20 +145,22 @@ export const NetworkChart = memo(function NetworkChart({ data }: NetworkChartPro
                                 fontSize={10}
                                 style={{ fontVariantNumeric: 'tabular-nums' }}
                                 tickFormatter={(val) => `${val.toFixed(0)}`}
-                                domain={[0, 'auto']}
+                                domain={[0, (dataMax: number) => Math.max(100, Math.ceil(dataMax / 20) * 20)]}
                                 axisLine={false}
                                 tickLine={false}
                                 width={55}
                             />
-                            <Tooltip
-                                contentStyle={{ backgroundColor: "#09090b", borderColor: "rgba(255,255,255,0.1)", borderRadius: "12px", fontSize: "12px", backdropFilter: "blur(8px)" }}
-                                cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 2 }}
-                                itemStyle={{ color: "#e4e4e7" }}
-                                formatter={(value: ValueType | undefined) => {
-                                    if (value == null) return ["No data"];
-                                    return [`${typeof value === 'number' ? value.toFixed(0) : value} ms`];
-                                }}
-                            />
+                            {isHovering && (
+                                <Tooltip
+                                    contentStyle={{ backgroundColor: "#09090b", borderColor: "rgba(255,255,255,0.1)", borderRadius: "12px", fontSize: "12px", backdropFilter: "blur(8px)" }}
+                                    cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 2 }}
+                                    itemStyle={{ color: "#e4e4e7" }}
+                                    formatter={(value: ValueType | undefined) => {
+                                        if (value == null) return ["No data"];
+                                        return [`${typeof value === 'number' ? value.toFixed(0) : value} ms`];
+                                    }}
+                                />
+                            )}
                             <Area
                                 type="linear"
                                 dataKey="latency"
@@ -177,20 +199,22 @@ export const NetworkChart = memo(function NetworkChart({ data }: NetworkChartPro
                                 fontSize={10}
                                 style={{ fontVariantNumeric: 'tabular-nums' }}
                                 tickFormatter={(val) => `${val.toFixed(0)}`}
-                                domain={['auto', 'auto']}
+                                domain={[0, (dataMax: number) => Math.max(70, Math.ceil(dataMax / 10) * 10)]}
                                 axisLine={false}
                                 tickLine={false}
                                 width={55}
                             />
-                            <Tooltip
-                                contentStyle={{ backgroundColor: "#09090b", borderColor: "rgba(255,255,255,0.1)", borderRadius: "12px", fontSize: "12px", backdropFilter: "blur(8px)" }}
-                                cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 2 }}
-                                itemStyle={{ color: "#e4e4e7" }}
-                                formatter={(value: ValueType | undefined) => {
-                                    if (value == null) return ["No data"];
-                                    return [`${typeof value === 'number' ? value.toFixed(1) : value} W`];
-                                }}
-                            />
+                            {isHovering && (
+                                <Tooltip
+                                    contentStyle={{ backgroundColor: "#09090b", borderColor: "rgba(255,255,255,0.1)", borderRadius: "12px", fontSize: "12px", backdropFilter: "blur(8px)" }}
+                                    cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 2 }}
+                                    itemStyle={{ color: "#e4e4e7" }}
+                                    formatter={(value: ValueType | undefined) => {
+                                        if (value == null) return ["No data"];
+                                        return [`${typeof value === 'number' ? value.toFixed(1) : value} W`];
+                                    }}
+                                />
+                            )}
                             <Area
                                 type="stepAfter"
                                 dataKey="power"

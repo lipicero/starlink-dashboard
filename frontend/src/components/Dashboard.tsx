@@ -60,11 +60,14 @@ export const Dashboard = memo(function Dashboard({ status, history, isConnected 
     const qualityScore = useMemo(() => {
         let score = 100;
         if (!network || !service) return score;
-        if (network.packet_loss > 0) score -= (network.packet_loss * 100) * 5;
-        if (network.latency_ms > 50) score -= (network.latency_ms - 50) / 2;
+        
+        // Minor tolerances for normal Starlink micro-variance
+        if (network.packet_loss > 0.005) score -= (network.packet_loss * 100) * 5; 
+        if (network.latency_ms > 65) score -= (network.latency_ms - 65) / 2;
         if (!network.snr_valid) score -= 15;
-        if (service.obstruction_fraction > 0) score -= service.obstruction_fraction * 200;
-        return Math.floor(Math.max(0, Math.min(100, score)));
+        if (service.obstruction_fraction > 0.001) score -= service.obstruction_fraction * 200;
+        
+        return Math.round(Math.max(0, Math.min(100, score)));
     }, [network, service]);
 
     if (!status) {
@@ -96,13 +99,13 @@ export const Dashboard = memo(function Dashboard({ status, history, isConnected 
 
             <div className="mx-auto max-w-7xl space-y-8 relative z-10">
                 {/* Header */}                <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between py-4">
-                    <div className="flex items-center gap-4">
+                    <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4 w-full sm:w-auto">
                         <div>
                             <h1 className="text-xl sm:text-2xl font-black tracking-tighter text-white bg-clip-text text-transparent bg-gradient-to-r from-white to-zinc-500 text-center sm:text-left">
                                 Starlink <span className="text-blue-500">Dashboard</span>
                             </h1>
                         </div>
-                        <div className="hidden md:flex ml-4 items-center bg-white/[0.03] border border-white/5 rounded-full p-1 self-center">
+                        <div className="flex sm:ml-4 items-center bg-white/[0.03] border border-white/5 rounded-full p-1 self-stretch sm:self-center justify-between sm:justify-center">
                             {SAMPLE_LIMITS.map((limit) => (
                                 <button
                                     key={limit}
@@ -121,22 +124,22 @@ export const Dashboard = memo(function Dashboard({ status, history, isConnected 
                         </div>
                     </div>
                     <div className="flex flex-wrap items-center justify-center sm:justify-end gap-3 sm:gap-4">
-                        <div className="flex items-center gap-3 sm:mr-4 bg-white/[0.03] border border-white/5 px-3 py-1.5 rounded-2xl">
-                            <div className="flex flex-col items-end">
-                                <span className="text-[8px] sm:text-[10px] font-black tracking-widest text-zinc-600 uppercase">Calidad</span>
+                        <div className="flex items-center gap-2 sm:gap-3 bg-white/[0.03] border border-white/5 px-3 sm:px-4 py-1.5 rounded-full">
+                            <span className="text-[10px] sm:text-xs font-bold tracking-widest text-zinc-400 uppercase">Calidad</span>
+                            <div className="flex items-center gap-2">
+                                <div className="h-1.5 w-12 sm:w-16 bg-zinc-800 rounded-full overflow-hidden">
+                                    <div
+                                        className={cn(
+                                            "h-full transition-[width] duration-500",
+                                            qualityScore > 80 ? "bg-green-500" : qualityScore > 50 ? "bg-yellow-500" : "bg-red-500"
+                                        )}
+                                        style={{ width: `${qualityScore}%` }}
+                                    />
+                                </div>
                                 <span className={cn(
-                                    "text-sm sm:text-xl font-black font-mono leading-none",
+                                    "text-[10px] sm:text-xs font-black font-mono",
                                     qualityScore > 80 ? "text-green-400" : qualityScore > 50 ? "text-yellow-400" : "text-red-400"
                                 )}>{qualityScore}%</span>
-                            </div>
-                            <div className="hidden md:block h-1.5 w-20 lg:w-24 bg-zinc-800 rounded-full overflow-hidden">
-                                <div
-                                    className={cn(
-                                        "h-full transition-[width] duration-500",
-                                        qualityScore > 80 ? "bg-green-500" : qualityScore > 50 ? "bg-yellow-500" : "bg-red-500"
-                                    )}
-                                    style={{ width: `${qualityScore}%` }}
-                                />
                             </div>
                         </div>
                         {service.update_ready ? (
