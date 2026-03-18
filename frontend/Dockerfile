@@ -37,5 +37,5 @@ COPY --from=builder /app/frontend/public ./frontend/public
 
 EXPOSE 3000
 
-# next start in standalone mode — no pnpm/npm needed
+# Run the standalone server
 CMD ["node", "frontend/server.js"]
