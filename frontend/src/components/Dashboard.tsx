@@ -3,7 +3,7 @@ import { StatusSnapshot } from "../types";
 import { AlertBanner } from "./AlertBanner";
 import { StatusCard } from "./StatusCard";
 import dynamic from "next/dynamic";
-import { Activity, ArrowDown, ArrowUp, Zap, Navigation, HardDrive, Thermometer, ArrowUpCircle, Signal, Link2 } from "lucide-react";
+import { Activity, ArrowDown, ArrowUp, Zap, Navigation, HardDrive, ArrowUpCircle, Signal } from "lucide-react";
 import { cn } from "../lib/utils";
 
 const NetworkChart = dynamic(() => import("./NetworkChart").then(mod => mod.NetworkChart), {
@@ -20,23 +20,9 @@ interface DashboardProps {
 }
 
 export const Dashboard = memo(function Dashboard({ status, history, isConnected }: DashboardProps) {
-    if (!status) {
-        return (
-            <div className="flex min-h-screen items-center justify-center text-zinc-500">
-                <div aria-live="polite" className="flex flex-col items-center gap-4">
-                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-zinc-700 border-t-white"></div>
-                    <p>Conectando a Starlink…</p>
-                </div>
-            </div>
-        );
-    }
-
     const { health, service, network, installation, alerts } = status || {};
 
-    if (!service || !network || !health || !installation) return null;
-
     const [sampleLimit, setSampleLimit] = useState(60);
-
     // Dynamic downsampling: If we have too many points, show fewer but averaged
     const filteredHistory = useMemo(() => {
         const lastPoints = history.slice(-sampleLimit);
@@ -48,33 +34,51 @@ export const Dashboard = memo(function Dashboard({ status, history, isConnected 
         return lastPoints.filter((_, i) => i % step === 0);
     }, [history, sampleLimit]);
 
-    const { avgDownlink, avgUplink, avgLatency, avgPower } = useMemo(() => {
+    const { avgDownlink, avgUplink, avgLatency, avgPower, maxDownlink, maxUplink } = useMemo(() => {
         const lastPoints = history.slice(-sampleLimit); // Use full slice for averages for precision
-        if (lastPoints.length === 0) return { avgDownlink: 0, avgUplink: 0, avgLatency: 0, avgPower: 0 };
+        if (lastPoints.length === 0) return { avgDownlink: 0, avgUplink: 0, avgLatency: 0, avgPower: 0, maxDownlink: 0, maxUplink: 0 };
         const sum = lastPoints.reduce((acc, curr) => ({
             down: acc.down + curr.downlink,
             up: acc.up + curr.uplink,
             lat: acc.lat + curr.latency,
-            pwr: acc.pwr + curr.power
-        }), { down: 0, up: 0, lat: 0, pwr: 0 });
+            pwr: acc.pwr + curr.power,
+            maxD: Math.max(acc.maxD, curr.downlink),
+            maxU: Math.max(acc.maxU, curr.uplink)
+        }), { down: 0, up: 0, lat: 0, pwr: 0, maxD: 0, maxU: 0 });
         
         return {
             avgDownlink: sum.down / lastPoints.length,
             avgUplink: sum.up / lastPoints.length,
             avgLatency: sum.lat / lastPoints.length,
-            avgPower: sum.pwr / lastPoints.length
+            avgPower: sum.pwr / lastPoints.length,
+            maxDownlink: sum.maxD,
+            maxUplink: sum.maxU
         };
     }, [history, sampleLimit]);
 
     // Quality Score Calculation
     const qualityScore = useMemo(() => {
         let score = 100;
+        if (!network || !service) return score;
         if (network.packet_loss > 0) score -= (network.packet_loss * 100) * 5;
         if (network.latency_ms > 50) score -= (network.latency_ms - 50) / 2;
         if (!network.snr_valid) score -= 15;
         if (service.obstruction_fraction > 0) score -= service.obstruction_fraction * 200;
         return Math.floor(Math.max(0, Math.min(100, score)));
-    }, [network.packet_loss, network.latency_ms, network.snr_valid, service.obstruction_fraction]);
+    }, [network, service]);
+
+    if (!status) {
+        return (
+            <div className="flex min-h-screen items-center justify-center text-zinc-500">
+                <div aria-live="polite" className="flex flex-col items-center gap-4">
+                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-zinc-700 border-t-white"></div>
+                    <p>Conectando a Starlink…</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (!service || !network || !health || !installation) return null;
 
     return (
         <div className="min-h-screen bg-[#020205] p-6 text-zinc-100 selection:bg-blue-500/30 relative overflow-hidden">
@@ -156,7 +160,7 @@ export const Dashboard = memo(function Dashboard({ status, history, isConnected 
                     </div>
                 </header>
 
-                <AlertBanner alerts={alerts} />
+                <AlertBanner alerts={alerts || []} />
                 {/* KPI Grid */}
                 <div className="grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-5">
                     <StatusCard
@@ -191,9 +195,15 @@ export const Dashboard = memo(function Dashboard({ status, history, isConnected 
                         unit="Mbps"
                         icon={<ArrowDown aria-hidden="true" className="h-4 w-4 text-blue-500" />}
                     >
-                        <div className="mt-2 border-t border-white/5 pt-2 flex items-center justify-between text-[10px]">
-                            <span className="text-zinc-500 uppercase tracking-tighter">Promedio Hist.</span>
-                            <span className="font-mono text-zinc-300 font-bold">{avgDownlink.toFixed(1)} Mbps</span>
+                        <div className="mt-2 border-t border-white/5 pt-2 flex flex-col gap-1.5">
+                            <div className="flex items-center justify-between text-[10px]">
+                                <span className="text-zinc-500 uppercase tracking-tighter">Pico Máximo</span>
+                                <span className="font-mono text-blue-400 font-bold">{maxDownlink.toFixed(1)} Mbps</span>
+                            </div>
+                            <div className="flex items-center justify-between text-[10px]">
+                                <span className="text-zinc-500 uppercase tracking-tighter">Promedio Hist.</span>
+                                <span className="font-mono text-zinc-300 font-bold">{avgDownlink.toFixed(1)} Mbps</span>
+                            </div>
                         </div>
                     </StatusCard>
                     <StatusCard
@@ -202,9 +212,15 @@ export const Dashboard = memo(function Dashboard({ status, history, isConnected 
                         unit="Mbps"
                         icon={<ArrowUp aria-hidden="true" className="h-4 w-4 text-blue-500" />}
                     >
-                        <div className="mt-2 border-t border-white/5 pt-2 flex items-center justify-between text-[10px]">
-                            <span className="text-zinc-500 uppercase tracking-tighter">Promedio Hist.</span>
-                            <span className="font-mono text-zinc-300 font-bold">{avgUplink.toFixed(1)} Mbps</span>
+                        <div className="mt-2 border-t border-white/5 pt-2 flex flex-col gap-1.5">
+                            <div className="flex items-center justify-between text-[10px]">
+                                <span className="text-zinc-500 uppercase tracking-tighter">Pico Máximo</span>
+                                <span className="font-mono text-purple-400 font-bold">{maxUplink.toFixed(1)} Mbps</span>
+                            </div>
+                            <div className="flex items-center justify-between text-[10px]">
+                                <span className="text-zinc-500 uppercase tracking-tighter">Promedio Hist.</span>
+                                <span className="font-mono text-zinc-300 font-bold">{avgUplink.toFixed(1)} Mbps</span>
+                            </div>
                         </div>
                     </StatusCard>
                     <StatusCard

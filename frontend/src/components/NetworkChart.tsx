@@ -1,7 +1,8 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useState } from "react";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from "recharts";
+import type { ValueType } from "recharts/types/component/DefaultTooltipContent";
 
 interface NetworkChartProps {
     data: { timestamp: string; downlink: number; uplink: number; latency: number }[];
@@ -10,14 +11,30 @@ interface NetworkChartProps {
 const CHART_MARGINS = { top: 5, right: 0, left: -20, bottom: 0 };
 
 export const NetworkChart = memo(function NetworkChart({ data }: NetworkChartProps) {
-    if (!data || data.length === 0) return (
+    const [isHovering, setIsHovering] = useState(false);
+    const [prevData, setPrevData] = useState(data);
+    const [displayData, setDisplayData] = useState(data);
+
+    // deriving state during render ("You might not need an effect" tip)
+    if (data !== prevData) {
+        setPrevData(data);
+        if (!isHovering) {
+            setDisplayData(data);
+        }
+    }
+
+    if (!displayData || displayData.length === 0) return (
         <div className="flex h-[350px] w-full items-center justify-center rounded-2xl border border-white/5 bg-zinc-900/40 text-zinc-500 backdrop-blur-xl">
             Awaiting Data Signal…
         </div>
     );
 
     return (
-        <div className="flex w-full flex-col gap-4">
+        <div 
+            className="flex w-full flex-col gap-4"
+            onMouseEnter={() => setIsHovering(true)}
+            onMouseLeave={() => setIsHovering(false)}
+        >
             {/* Throughput Chart */}
             <div className="group relative h-[280px] w-full rounded-2xl border border-white/5 bg-zinc-900/40 p-6 backdrop-blur-xl transition-[border-color] duration-300 hover:border-white/10">
                 <div className="absolute inset-0 bg-gradient-to-b from-white/[0.02] to-transparent rounded-2xl pointer-events-none" />
@@ -27,7 +44,7 @@ export const NetworkChart = memo(function NetworkChart({ data }: NetworkChartPro
                 </h3>
                 <div className="h-[180px] w-full">
                     <ResponsiveContainer width="100%" height="100%" debounce={150}>
-                        <AreaChart data={data} margin={CHART_MARGINS}>
+                        <AreaChart data={displayData} margin={CHART_MARGINS}>
                             <defs>
                                 <linearGradient id="colorDownlink" x1="0" y1="0" x2="0" y2="1">
                                     <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
@@ -54,7 +71,10 @@ export const NetworkChart = memo(function NetworkChart({ data }: NetworkChartPro
                                 contentStyle={{ backgroundColor: "#09090b", borderColor: "rgba(255,255,255,0.1)", borderRadius: "12px", fontSize: "12px", backdropFilter: "blur(8px)" }}
                                 cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 2 }}
                                 itemStyle={{ color: "#e4e4e7" }}
-                                formatter={(value: any) => [`${typeof value === 'number' ? value.toFixed(1) : value} Mbps`]}
+                                formatter={(value: ValueType | undefined) => {
+                                    if (value == null) return ["No data"];
+                                    return [`${typeof value === 'number' ? value.toFixed(1) : value} Mbps`];
+                                }}
                             />
                             <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: "10px", fontWeight: "bold", color: "#71717a", textTransform: "uppercase", letterSpacing: "0.1em", paddingTop: "15px" }} />
                             <Area
@@ -91,7 +111,7 @@ export const NetworkChart = memo(function NetworkChart({ data }: NetworkChartPro
                 </h3>
                 <div className="h-[130px] w-full">
                     <ResponsiveContainer width="100%" height="100%" debounce={150}>
-                        <AreaChart data={data} margin={CHART_MARGINS}>
+                        <AreaChart data={displayData} margin={CHART_MARGINS}>
                             <defs>
                                 <linearGradient id="colorLatency" x1="0" y1="0" x2="0" y2="1">
                                     <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3} />
@@ -114,7 +134,10 @@ export const NetworkChart = memo(function NetworkChart({ data }: NetworkChartPro
                                 contentStyle={{ backgroundColor: "#09090b", borderColor: "rgba(255,255,255,0.1)", borderRadius: "12px", fontSize: "12px", backdropFilter: "blur(8px)" }}
                                 cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 2 }}
                                 itemStyle={{ color: "#e4e4e7" }}
-                                formatter={(value: any) => [`${typeof value === 'number' ? value.toFixed(0) : value} ms`]}
+                                formatter={(value: ValueType | undefined) => {
+                                    if (value == null) return ["No data"];
+                                    return [`${typeof value === 'number' ? value.toFixed(0) : value} ms`];
+                                }}
                             />
                             <Area
                                 type="linear"
