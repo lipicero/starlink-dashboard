@@ -153,6 +153,58 @@ export const NetworkChart = memo(function NetworkChart({ data }: NetworkChartPro
                     </ResponsiveContainer>
                 </div>
             </div>
+
+            {/* Power Chart */}
+            <div className="group relative h-[180px] w-full rounded-2xl border border-white/5 bg-zinc-900/40 p-6 backdrop-blur-xl transition-[border-color] duration-300 hover:border-white/10">
+                <div className="absolute inset-0 bg-gradient-to-b from-white/[0.02] to-transparent rounded-2xl pointer-events-none" />
+                <h3 className="mb-6 text-xs font-black uppercase tracking-widest text-zinc-500 flex items-center justify-between">
+                    Consumo Eléctrico
+                    <div className="h-[1px] flex-grow ml-4 bg-white/5" />
+                </h3>
+                <div className="h-[90px] w-full">
+                    <ResponsiveContainer width="100%" height="100%" debounce={150}>
+                        <AreaChart data={displayData} margin={CHART_MARGINS}>
+                            <defs>
+                                <linearGradient id="colorPower" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
+                                    <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+                                </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="0" stroke="#ffffff03" vertical={false} />
+                            <XAxis dataKey="timestamp" hide />
+                            <YAxis
+                                stroke="#52525b"
+                                fontSize={10}
+                                style={{ fontVariantNumeric: 'tabular-nums' }}
+                                tickFormatter={(val) => `${val.toFixed(0)}`}
+                                domain={['auto', 'auto']}
+                                axisLine={false}
+                                tickLine={false}
+                                width={55}
+                            />
+                            <Tooltip
+                                contentStyle={{ backgroundColor: "#09090b", borderColor: "rgba(255,255,255,0.1)", borderRadius: "12px", fontSize: "12px", backdropFilter: "blur(8px)" }}
+                                cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 2 }}
+                                itemStyle={{ color: "#e4e4e7" }}
+                                formatter={(value: ValueType | undefined) => {
+                                    if (value == null) return ["No data"];
+                                    return [`${typeof value === 'number' ? value.toFixed(1) : value} W`];
+                                }}
+                            />
+                            <Area
+                                type="stepAfter"
+                                dataKey="power"
+                                stroke="#ef4444"
+                                strokeWidth={2}
+                                fillOpacity={1}
+                                fill="url(#colorPower)"
+                                name="Potencia"
+                                isAnimationActive={false}
+                            />
+                        </AreaChart>
+                    </ResponsiveContainer>
+                </div>
+            </div>
         </div>
     );
 });

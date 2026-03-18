@@ -323,7 +323,7 @@ export const Dashboard = memo(function Dashboard({ status, history, isConnected 
                                     </div>
                                     <div className="flex flex-col items-end">
                                         <span className="text-zinc-500 uppercase text-[10px] tracking-tighter">Promedio ({sampleLimit === 720 ? 'Max' : sampleLimit === 60 ? '1m' : sampleLimit === 300 ? '5m' : '10m'})</span>
-                                        <span className="font-mono text-zinc-300 font-bold [font-variant-numeric:tabular-nums]">{avgPower.toFixed(1)} W</span>
+                                        <span className="font-mono text-zinc-300 font-bold [font-variant-numeric:tabular-nums] mt-1">{avgPower.toFixed(1)} W</span>
                                     </div>
                                 </div>
                             </div>
@@ -361,7 +361,45 @@ export const Dashboard = memo(function Dashboard({ status, history, isConnected 
                                         )} />
                                     </div>
                                 </div>
-                                <div className="flex flex-col gap-2 p-3 rounded-xl bg-white/[0.02] border border-white/5">
+                                
+                                <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-center gap-6">
+                                    <div className="relative w-24 h-24 rounded-full border-2 border-white/10 bg-black/40 flex items-center justify-center">
+                                        <div className="absolute top-1 text-[8px] font-bold text-zinc-500">N</div>
+                                        <div className="absolute right-1 text-[8px] font-bold text-zinc-500">E</div>
+                                        <div className="absolute bottom-1 text-[8px] font-bold text-zinc-500">S</div>
+                                        <div className="absolute left-1 text-[8px] font-bold text-zinc-500">O</div>
+                                        
+                                        {/* Target Direction */}
+                                        <div 
+                                            className="absolute w-full h-full transition-transform duration-1000"
+                                            style={{ transform: `rotate(${installation.azimuth_target}deg)` }}
+                                        >
+                                            <div className="mx-auto w-1 h-2 bg-blue-500/50 rounded-full" />
+                                        </div>
+                                        
+                                        {/* Current Direction (Antenna) */}
+                                        <div 
+                                            className="absolute w-full h-full transition-transform duration-1000 z-10"
+                                            style={{ transform: `rotate(${installation.azimuth_current}deg)` }}
+                                        >
+                                            <div className="mx-auto mt-2 w-0 h-0 border-l-[6px] border-r-[6px] border-b-[12px] border-transparent border-b-white" />
+                                        </div>
+                                        
+                                        <div className="w-1.5 h-1.5 bg-zinc-500 rounded-full z-20" />
+                                    </div>
+                                    <div className="flex flex-col gap-2">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-2 h-2 bg-white flex-shrink-0" style={{ clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)' }} />
+                                            <span className="text-[10px] text-zinc-400">Apuntando ({installation.azimuth_current.toFixed(0)}°)</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-2 h-2 rounded-full bg-blue-500/50 flex-shrink-0" />
+                                            <span className="text-[10px] text-zinc-400">Objetivo ({installation.azimuth_target.toFixed(0)}°)</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-col gap-2 p-3 rounded-xl bg-white/[0.02] border border-white/5 mt-4">
                                     <span className="text-[10px] uppercase tracking-widest text-zinc-500 text-center">Datos de ubicación precisa</span>
                                     <div className="flex justify-between items-center bg-black/40 p-2 rounded-lg font-mono text-[11px] [font-variant-numeric:tabular-nums]">
                                         <span className="text-zinc-600">LAT:</span>
@@ -419,7 +457,6 @@ export const Dashboard = memo(function Dashboard({ status, history, isConnected 
                                 </div>
                             </div>
                         </div>
-
                     </div>
                 </div>
             </div>
