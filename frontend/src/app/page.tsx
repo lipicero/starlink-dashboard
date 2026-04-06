@@ -10,12 +10,12 @@ async function getInitialData() {
   try {
     const [statusRes, historyRes] = await Promise.all([
       fetch(`${API_BASE_URL}/api/status`, { cache: 'no-store' }),
-      fetch(`${API_BASE_URL}/api/history`, { cache: 'no-store' })
+      fetch(`${API_BASE_URL}/api/history?limit=86400`, { cache: 'no-store' })
     ]);
 
-    
+
     let initialStatus: StatusSnapshot | null = null;
-    let initialHistory: { timestamp: string; downlink: number; uplink: number; latency: number; power: number }[] = [];
+    let initialHistory: { timestamp: string; downlink: number; uplink: number; latency: number; power: number; packet_loss: number }[] = [];
 
     if (statusRes.ok) {
       initialStatus = await statusRes.json();
@@ -28,10 +28,11 @@ async function getInitialData() {
         downlink: snap.network.downlink_mbps,
         uplink: snap.network.uplink_mbps,
         latency: snap.network.latency_ms,
+        packet_loss: snap.network.packet_loss,
         power: snap.health.power_w
       }));
     }
-    
+
     return { initialStatus, initialHistory };
   } catch (e) {
     console.error("Error fetching initial data on server:", e);

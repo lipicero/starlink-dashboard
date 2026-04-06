@@ -12,3 +12,4 @@ backend/consumption.json
 # Next.js
 frontend/.next/
 frontend/out/
+backend/metrics.db

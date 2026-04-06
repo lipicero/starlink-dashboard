@@ -1,5 +1,5 @@
 import store from './store.js';
-import { writeSnapshot } from '../persistence/influxWriter.js';
+import { sqliteWriter } from '../persistence/sqliteWriter.js';
 
 const POLL_INTERVAL = parseInt(process.env.POLL_INTERVAL_MS) || 5000;
 const PROMETHEUS_URL = process.env.PROMETHEUS_URL || 'http://localhost:9090';
@@ -101,7 +101,7 @@ const runCycle = async () => {
         const snapshot = normalize(metrics);
 
         store.update(snapshot);
-        writeSnapshot(snapshot);
+        sqliteWriter.writeSnapshot(snapshot);
 
         if (ioInstance) {
             ioInstance.emit('status', snapshot);

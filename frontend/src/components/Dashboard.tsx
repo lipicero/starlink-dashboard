@@ -11,11 +11,11 @@ const NetworkChart = dynamic(() => import("./NetworkChart").then(mod => mod.Netw
     loading: () => <div className="h-[350px] w-full animate-pulse rounded-2xl border border-white/5 bg-zinc-900/40" />
 });
 
-const SAMPLE_LIMITS = [60, 300, 600, 720];
+const SAMPLE_LIMITS = [60, 300, 3600, 43200, 86400];
 
 interface DashboardProps {
     status: StatusSnapshot | null;
-    history: { timestamp: string; downlink: number; uplink: number; latency: number; power: number }[];
+    history: { timestamp: string; downlink: number; uplink: number; latency: number; power: number; packet_loss: number }[];
     isConnected: boolean;
 }
 
@@ -23,13 +23,13 @@ export const Dashboard = memo(function Dashboard({ status, history, isConnected 
     const { health, service, network, installation, alerts } = status || {};
 
     const [sampleLimit, setSampleLimit] = useState(60);
-    // Dynamic downsampling: If we have too many points, show fewer but averaged
+    // Dynamic downsampling: uPlot/Canvas handles many more points than SVG
     const filteredHistory = useMemo(() => {
         const lastPoints = history.slice(-sampleLimit);
-        // If we show more than 120 points, sample every Nth point to keep performance high
-        const maxPointsToShow = 120;
+        // uPlot can handle ~1500 points smoothly on canvas
+        const maxPointsToShow = 1500;
         if (lastPoints.length <= maxPointsToShow) return lastPoints;
-        
+
         const step = Math.ceil(lastPoints.length / maxPointsToShow);
         return lastPoints.filter((_, i) => i % step === 0);
     }, [history, sampleLimit]);
@@ -45,7 +45,7 @@ export const Dashboard = memo(function Dashboard({ status, history, isConnected 
             maxD: Math.max(acc.maxD, curr.downlink),
             maxU: Math.max(acc.maxU, curr.uplink)
         }), { down: 0, up: 0, lat: 0, pwr: 0, maxD: 0, maxU: 0 });
-        
+
         return {
             avgDownlink: sum.down / lastPoints.length,
             avgUplink: sum.up / lastPoints.length,
@@ -60,13 +60,13 @@ export const Dashboard = memo(function Dashboard({ status, history, isConnected 
     const qualityScore = useMemo(() => {
         let score = 100;
         if (!network || !service) return score;
-        
+
         // Minor tolerances for normal Starlink micro-variance
-        if (network.packet_loss > 0.005) score -= (network.packet_loss * 100) * 5; 
+        if (network.packet_loss > 0.005) score -= (network.packet_loss * 100) * 5;
         if (network.latency_ms > 65) score -= (network.latency_ms - 65) / 2;
         if (!network.snr_valid) score -= 15;
         if (service.obstruction_fraction > 0.001) score -= service.obstruction_fraction * 200;
-        
+
         return Math.round(Math.max(0, Math.min(100, score)));
     }, [network, service]);
 
@@ -88,10 +88,10 @@ export const Dashboard = memo(function Dashboard({ status, history, isConnected 
             {/* Ambient Background Effects */}
             <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none mix-blend-overlay" />
             <div className="absolute inset-0 bg-grid-white/[0.02] bg-[size:50px_50px] pointer-events-none" />
-            
+
             <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-blue-600/10 rounded-full blur-[120px] pointer-events-none" />
             <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-purple-600/10 rounded-full blur-[120px] pointer-events-none" />
-            
+
             {/* Floating Stars/Particles */}
             <div className="absolute top-1/4 left-1/3 w-1 h-1 bg-white rounded-full animate-ping opacity-20" />
             <div className="absolute top-2/3 left-1/4 w-1 h-1 bg-white rounded-full animate-ping opacity-10" style={{ animationDelay: '1.5s' }} />
@@ -110,15 +110,15 @@ export const Dashboard = memo(function Dashboard({ status, history, isConnected 
                                 <button
                                     key={limit}
                                     onClick={() => setSampleLimit(limit)}
-                                    aria-label={`Ver historial de ${limit === 60 ? "1 minuto" : limit === 300 ? "5 minutos" : limit === 600 ? "10 minutos" : "tiempo máximo"}`}
+                                    aria-label={`Ver historial de ${limit === 60 ? "1 minuto" : limit === 300 ? "5 minutos" : limit === 3600 ? "1 hora" : limit === 43200 ? "12 horas" : "24 horas"}`}
                                     className={cn(
                                         "px-3 py-1 text-[10px] font-bold rounded-full transition-[background-color,color,box-shadow] duration-200",
-                                        sampleLimit === limit 
-                                            ? "bg-blue-600 text-white shadow-lg shadow-blue-900/40" 
+                                        sampleLimit === limit
+                                            ? "bg-blue-600 text-white shadow-lg shadow-blue-900/40"
                                             : "text-zinc-500 hover:text-white"
                                     )}
                                 >
-                                    {limit === 60 ? "1m" : limit === 300 ? "5m" : limit === 600 ? "10m" : "Max"}
+                                    {limit === 60 ? "1m" : limit === 300 ? "5m" : limit === 3600 ? "1h" : limit === 43200 ? "12h" : "24h"}
                                 </button>
                             ))}
                         </div>
@@ -325,7 +325,7 @@ export const Dashboard = memo(function Dashboard({ status, history, isConnected 
                                         <span className="font-mono text-blue-400 font-bold [font-variant-numeric:tabular-nums]">{health.power_w.toFixed(1)} W</span>
                                     </div>
                                     <div className="flex flex-col items-end">
-                                        <span className="text-zinc-500 uppercase text-[10px] tracking-tighter">Promedio ({sampleLimit === 720 ? 'Max' : sampleLimit === 60 ? '1m' : sampleLimit === 300 ? '5m' : '10m'})</span>
+                                        <span className="text-zinc-500 uppercase text-[10px] tracking-tighter">Promedio ({sampleLimit === 86400 ? '24h' : sampleLimit === 43200 ? '12h' : sampleLimit === 3600 ? '1h' : sampleLimit === 300 ? '5m' : '1m'})</span>
                                         <span className="font-mono text-zinc-300 font-bold [font-variant-numeric:tabular-nums] mt-1">{avgPower.toFixed(1)} W</span>
                                     </div>
                                 </div>
@@ -364,30 +364,30 @@ export const Dashboard = memo(function Dashboard({ status, history, isConnected 
                                         )} />
                                     </div>
                                 </div>
-                                
+
                                 <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-center gap-6">
                                     <div className="relative w-24 h-24 rounded-full border-2 border-white/10 bg-black/40 flex items-center justify-center">
                                         <div className="absolute top-1 text-[8px] font-bold text-zinc-500">N</div>
                                         <div className="absolute right-1 text-[8px] font-bold text-zinc-500">E</div>
                                         <div className="absolute bottom-1 text-[8px] font-bold text-zinc-500">S</div>
                                         <div className="absolute left-1 text-[8px] font-bold text-zinc-500">O</div>
-                                        
+
                                         {/* Target Direction */}
-                                        <div 
+                                        <div
                                             className="absolute w-full h-full transition-transform duration-1000"
                                             style={{ transform: `rotate(${installation.azimuth_target}deg)` }}
                                         >
                                             <div className="mx-auto w-1 h-2 bg-blue-500/50 rounded-full" />
                                         </div>
-                                        
+
                                         {/* Current Direction (Antenna) */}
-                                        <div 
+                                        <div
                                             className="absolute w-full h-full transition-transform duration-1000 z-10"
                                             style={{ transform: `rotate(${installation.azimuth_current}deg)` }}
                                         >
                                             <div className="mx-auto mt-2 w-0 h-0 border-l-[6px] border-r-[6px] border-b-[12px] border-transparent border-b-white" />
                                         </div>
-                                        
+
                                         <div className="w-1.5 h-1.5 bg-zinc-500 rounded-full z-20" />
                                     </div>
                                     <div className="flex flex-col gap-2">

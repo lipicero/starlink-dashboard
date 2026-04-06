@@ -7,7 +7,6 @@ const FILE_PATH = path.join(process.cwd(), 'consumption.json');
 class Store {
     constructor() {
         this.latestSnapshot = null;
-        this.historyBuffer = [];
         this.consumption = {
             session_bytes: 0,
             day_bytes: 0,
@@ -92,10 +91,6 @@ class Store {
         };
 
         this.latestSnapshot = snapshot;
-        this.historyBuffer.push(snapshot);
-        if (this.historyBuffer.length > MAX_HISTORY) {
-            this.historyBuffer.shift();
-        }
 
         // Guardar a disco cada 10 segundos
         if (now - this.lastSaveTime > 10000) {
@@ -108,9 +103,6 @@ class Store {
         return this.latestSnapshot;
     }
 
-    getHistory() {
-        return this.historyBuffer;
-    }
 }
 
 export default new Store();
