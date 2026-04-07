@@ -55,7 +55,32 @@ export const Dashboard = memo(function Dashboard({ status, history, isConnected 
         const step = Math.ceil(filteredLength / targetPoints);
         const result = [];
         for (let i = startIndex; i < history.length; i += step) {
-            result.push(history[i]);
+            const chunkEnd = Math.min(i + step, history.length);
+            let down = 0, up = 0, lat = 0, loss = 0, pwr = 0, obs = 0;
+            
+            for (let j = i; j < chunkEnd; j++) {
+                const pt = history[j];
+                // Use max for throughput/obstruction to preserve visibility of spikes over long periods
+                if (pt.downlink > down) down = pt.downlink;
+                if (pt.uplink > up) up = pt.uplink;
+                if (pt.obstruction > obs) obs = pt.obstruction;
+                
+                // Use sum for averaging others
+                lat += pt.latency;
+                loss += pt.packet_loss;
+                pwr += pt.power;
+            }
+            
+            const count = chunkEnd - i;
+            result.push({
+                timestamp: history[chunkEnd - 1].timestamp,
+                downlink: down,
+                uplink: up,
+                latency: lat / count,
+                packet_loss: loss / count,
+                power: pwr / count,
+                obstruction: obs
+            });
         }
         return result;
     }, [history, sampleLimitSeconds]);
