@@ -13,24 +13,15 @@ async function getInitialData() {
       fetch(`${API_BASE_URL}/api/history?limit=86400`, { cache: 'no-store' })
     ]);
 
-
     let initialStatus: StatusSnapshot | null = null;
-    let initialHistory: { timestamp: string; downlink: number; uplink: number; latency: number; power: number; packet_loss: number }[] = [];
+    let initialHistory: { timestamp: string; downlink: number; uplink: number; latency: number; power: number; packet_loss: number; obstruction: number }[] = [];
 
     if (statusRes.ok) {
       initialStatus = await statusRes.json();
     }
 
     if (historyRes.ok) {
-      const historyData: StatusSnapshot[] = await historyRes.json();
-      initialHistory = historyData.map(snap => ({
-        timestamp: snap.timestamp,
-        downlink: snap.network.downlink_mbps,
-        uplink: snap.network.uplink_mbps,
-        latency: snap.network.latency_ms,
-        packet_loss: snap.network.packet_loss,
-        power: snap.health.power_w
-      }));
+      initialHistory = await historyRes.json();
     }
 
     return { initialStatus, initialHistory };

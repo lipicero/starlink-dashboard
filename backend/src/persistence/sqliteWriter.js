@@ -46,13 +46,66 @@ export class SQLiteWriter {
     getHistory(limit = 720) {
         if (!this.db) return [];
         try {
-            const stmt = this.db.prepare(`
-                SELECT payload FROM metrics ORDER BY timestamp DESC LIMIT ?
-            `);
-            const rows = stmt.all(limit);
+            let query = `
+                SELECT 
+                    timestamp,
+                    json_extract(payload, '$.network.downlink_mbps') as downlink,
+                    json_extract(payload, '$.network.uplink_mbps') as uplink,
+                    json_extract(payload, '$.network.latency_ms') as latency,
+                    json_extract(payload, '$.network.packet_loss') as packet_loss,
+                    json_extract(payload, '$.health.power_w') as power,
+                    json_extract(payload, '$.service.obstruction_fraction') as obstruction
+                FROM metrics 
+                ORDER BY timestamp DESC 
+                LIMIT ?
+            `;
             
-            // Reconstruct array of objects in chronological order
-            return rows.reverse().map(row => JSON.parse(row.payload));
+            // Hybrid approach: 
+            // 1. Last 3600 points (approx 1 hour) in RAW resolution
+            // 2. The rest of the history downsampled to 1 point per minute
+            if (limit >= 3600) {
+              const seconds = limit;
+              query = `
+                WITH raw_recent AS (
+                    SELECT 
+                        timestamp,
+                        json_extract(payload, '$.network.downlink_mbps') as downlink,
+                        json_extract(payload, '$.network.uplink_mbps') as uplink,
+                        json_extract(payload, '$.network.latency_ms') as latency,
+                        json_extract(payload, '$.network.packet_loss') as packet_loss,
+                        json_extract(payload, '$.health.power_w') as power,
+                        json_extract(payload, '$.service.obstruction_fraction') as obstruction
+                    FROM metrics 
+                    ORDER BY timestamp DESC 
+                    LIMIT 3600
+                ),
+                downsampled_old AS (
+                    SELECT 
+                        strftime('%Y-%m-%dT%H:%M:00Z', timestamp) as timestamp,
+                        max(json_extract(payload, '$.network.downlink_mbps')) as downlink,
+                        max(json_extract(payload, '$.network.uplink_mbps')) as uplink,
+                        avg(json_extract(payload, '$.network.latency_ms')) as latency,
+                        avg(json_extract(payload, '$.network.packet_loss')) as packet_loss,
+                        avg(json_extract(payload, '$.health.power_w')) as power,
+                        avg(json_extract(payload, '$.service.obstruction_fraction')) as obstruction
+                    FROM metrics 
+                    WHERE timestamp > datetime('now', '-${seconds} seconds')
+                      AND timestamp < (SELECT min(timestamp) FROM raw_recent)
+                    GROUP BY strftime('%Y-%m-%d %H:%M', timestamp)
+                )
+                SELECT * FROM (
+                    SELECT * FROM raw_recent
+                    UNION ALL
+                    SELECT * FROM downsampled_old
+                ) ORDER BY timestamp ASC
+              `;
+              const stmt = this.db.prepare(query);
+              return stmt.all();
+            }
+
+            const stmt = this.db.prepare(query);
+            const rows = stmt.all(limit);
+            return rows.reverse();
         } catch (err) {
             console.error('[SQLite] Read Error:', err);
             return [];

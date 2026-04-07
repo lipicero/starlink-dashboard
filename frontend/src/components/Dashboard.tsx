@@ -11,50 +11,80 @@ const NetworkChart = dynamic(() => import("./NetworkChart").then(mod => mod.Netw
     loading: () => <div className="h-[350px] w-full animate-pulse rounded-2xl border border-white/5 bg-zinc-900/40" />
 });
 
+// Time limits in seconds: 1m, 5m, 1h, 12h, 24h
 const SAMPLE_LIMITS = [60, 300, 3600, 43200, 86400];
 
 interface DashboardProps {
     status: StatusSnapshot | null;
-    history: { timestamp: string; downlink: number; uplink: number; latency: number; power: number; packet_loss: number }[];
+    history: { timestamp: string; downlink: number; uplink: number; latency: number; power: number; packet_loss: number; obstruction: number }[];
     isConnected: boolean;
 }
 
 export const Dashboard = memo(function Dashboard({ status, history, isConnected }: DashboardProps) {
     const { health, service, network, installation, alerts } = status || {};
 
-    const [sampleLimit, setSampleLimit] = useState(60);
-    // Dynamic downsampling: uPlot/Canvas handles many more points than SVG
-    const filteredHistory = useMemo(() => {
-        const lastPoints = history.slice(-sampleLimit);
-        // uPlot can handle ~1500 points smoothly on canvas
-        const maxPointsToShow = 1500;
-        if (lastPoints.length <= maxPointsToShow) return lastPoints;
+    const [sampleLimitSeconds, setSampleLimitSeconds] = useState(300); // Default to 5m
 
-        const step = Math.ceil(lastPoints.length / maxPointsToShow);
-        return lastPoints.filter((_, i) => i % step === 0);
-    }, [history, sampleLimit]);
+    // Filter history based on time instead of point count for accuracy
+    const timeFilteredHistory = useMemo(() => {
+        if (history.length === 0) return [];
+        
+        const latestTime = new Date(history[history.length - 1].timestamp).getTime() / 1000;
+        const startTime = latestTime - sampleLimitSeconds;
+        
+        // Find the start index using a reverse loop (optimized for recent data)
+        let startIndex = history.length - 1;
+        while (startIndex >= 0) {
+            const pt = new Date(history[startIndex].timestamp).getTime() / 1000;
+            if (pt < startTime) {
+                startIndex++;
+                break;
+            }
+            startIndex--;
+        }
+        if (startIndex < 0) startIndex = 0;
+
+        const filteredLength = history.length - startIndex;
+        
+        // Mobile-centric optimization: Limit to ~150 points for a very clean look
+        const targetPoints = 150;
+        if (filteredLength <= targetPoints) {
+            return startIndex === 0 ? history : history.slice(startIndex);
+        }
+
+        const step = Math.ceil(filteredLength / targetPoints);
+        const result = [];
+        for (let i = startIndex; i < history.length; i += step) {
+            result.push(history[i]);
+        }
+        return result;
+    }, [history, sampleLimitSeconds]);
 
     const { avgDownlink, avgUplink, avgLatency, avgPower, maxDownlink, maxUplink } = useMemo(() => {
-        const lastPoints = history.slice(-sampleLimit); // Use full slice for averages for precision
-        if (lastPoints.length === 0) return { avgDownlink: 0, avgUplink: 0, avgLatency: 0, avgPower: 0, maxDownlink: 0, maxUplink: 0 };
-        const sum = lastPoints.reduce((acc, curr) => ({
-            down: acc.down + curr.downlink,
-            up: acc.up + curr.uplink,
-            lat: acc.lat + curr.latency,
-            pwr: acc.pwr + curr.power,
-            maxD: Math.max(acc.maxD, curr.downlink),
-            maxU: Math.max(acc.maxU, curr.uplink)
-        }), { down: 0, up: 0, lat: 0, pwr: 0, maxD: 0, maxU: 0 });
+        const len = timeFilteredHistory.length;
+        if (len === 0) return { avgDownlink: 0, avgUplink: 0, avgLatency: 0, avgPower: 0, maxDownlink: 0, maxUplink: 0 };
+        
+        let down = 0, up = 0, lat = 0, pwr = 0, maxD = 0, maxU = 0;
+        
+        for (let i = 0; i < len; i++) {
+            const curr = timeFilteredHistory[i];
+            down += curr.downlink;
+            up += curr.uplink;
+            lat += curr.latency;
+            pwr += curr.power;
+            if (curr.downlink > maxD) maxD = curr.downlink;
+            if (curr.uplink > maxU) maxU = curr.uplink;
+        }
 
         return {
-            avgDownlink: sum.down / lastPoints.length,
-            avgUplink: sum.up / lastPoints.length,
-            avgLatency: sum.lat / lastPoints.length,
-            avgPower: sum.pwr / lastPoints.length,
-            maxDownlink: sum.maxD,
-            maxUplink: sum.maxU
+            avgDownlink: down / len,
+            avgUplink: up / len,
+            avgLatency: lat / len,
+            avgPower: pwr / len,
+            maxDownlink: maxD,
+            maxUplink: maxU
         };
-    }, [history, sampleLimit]);
+    }, [timeFilteredHistory]);
 
     // Quality Score Calculation
     const qualityScore = useMemo(() => {
@@ -98,7 +128,8 @@ export const Dashboard = memo(function Dashboard({ status, history, isConnected 
             <div className="absolute top-1/2 right-1/4 w-1 h-1 bg-white rounded-full animate-ping opacity-30" style={{ animationDelay: '3s' }} />
 
             <div className="mx-auto max-w-7xl space-y-8 relative z-10">
-                {/* Header */}                <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between py-4">
+                {/* Header */}
+                <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between py-4">
                     <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4 w-full sm:w-auto">
                         <div>
                             <h1 className="text-xl sm:text-2xl font-black tracking-tighter text-white bg-clip-text text-transparent bg-gradient-to-r from-white to-zinc-500 text-center sm:text-left">
@@ -109,11 +140,11 @@ export const Dashboard = memo(function Dashboard({ status, history, isConnected 
                             {SAMPLE_LIMITS.map((limit) => (
                                 <button
                                     key={limit}
-                                    onClick={() => setSampleLimit(limit)}
+                                    onClick={() => setSampleLimitSeconds(limit)}
                                     aria-label={`Ver historial de ${limit === 60 ? "1 minuto" : limit === 300 ? "5 minutos" : limit === 3600 ? "1 hora" : limit === 43200 ? "12 horas" : "24 horas"}`}
                                     className={cn(
                                         "px-3 py-1 text-[10px] font-bold rounded-full transition-[background-color,color,box-shadow] duration-200",
-                                        sampleLimit === limit
+                                        sampleLimitSeconds === limit
                                             ? "bg-blue-600 text-white shadow-lg shadow-blue-900/40"
                                             : "text-zinc-500 hover:text-white"
                                     )}
@@ -253,7 +284,7 @@ export const Dashboard = memo(function Dashboard({ status, history, isConnected 
                 {/* Charts & Details */}
                 <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
                     <div className="lg:col-span-2">
-                        <NetworkChart data={filteredHistory} />
+                        <NetworkChart data={timeFilteredHistory} />
                     </div>
 
                     <div className="space-y-4">
@@ -325,7 +356,7 @@ export const Dashboard = memo(function Dashboard({ status, history, isConnected 
                                         <span className="font-mono text-blue-400 font-bold [font-variant-numeric:tabular-nums]">{health.power_w.toFixed(1)} W</span>
                                     </div>
                                     <div className="flex flex-col items-end">
-                                        <span className="text-zinc-500 uppercase text-[10px] tracking-tighter">Promedio ({sampleLimit === 86400 ? '24h' : sampleLimit === 43200 ? '12h' : sampleLimit === 3600 ? '1h' : sampleLimit === 300 ? '5m' : '1m'})</span>
+                                        <span className="text-zinc-500 uppercase text-[10px] tracking-tighter">Promedio ({sampleLimitSeconds === 86400 ? '24h' : sampleLimitSeconds === 43200 ? '12h' : sampleLimitSeconds === 3600 ? '1h' : sampleLimitSeconds === 300 ? '5m' : '1m'})</span>
                                         <span className="font-mono text-zinc-300 font-bold [font-variant-numeric:tabular-nums] mt-1">{avgPower.toFixed(1)} W</span>
                                     </div>
                                 </div>
