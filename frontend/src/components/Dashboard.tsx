@@ -230,88 +230,87 @@ export const Dashboard = memo(function Dashboard({ status, history, isConnected 
                 </header>
 
                 <AlertBanner alerts={alerts || []} />
-                {/* KPI Grid */}
-                <div className="grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-5">
-                    <StatusCard
-                        label="Estado del Sistema"
-                        value={service.state === "En Línea" ? "Activo" : service.state === "Fuera de Línea" ? "Inactivo" : service.state}
-                        icon={<Activity aria-hidden="true" className="h-4 w-4" />}
-                        className={cn(
-                            "transition-[border-color,background-color] duration-500",
-                            service.state === "En Línea" ? "border-green-500/20 bg-green-500/5" : "border-red-500/20 bg-red-500/5"
-                        )}
-                    />
+                <div className="grid gap-4 sm:gap-6 grid-cols-2 lg:grid-cols-4">
+                    <div className="col-span-2 lg:col-span-1">
+                        <StatusCard
+                            label="Estado del Sistema"
+                            value={service?.state === "En Línea" ? "Activo" : service?.state || "Offline"}
+                            icon={<Activity className="h-4 w-4" />}
+                            className={service?.state === "En Línea" ? "border-green-500/10 shadow-[0_0_20px_-10px_rgba(34,197,94,0.1)]" : "border-red-500/10"}
+                        />
+                    </div>
+
                     <StatusCard
                         label="Obstrucciones"
-                        value={`${(service.obstruction_fraction * 100).toFixed(2)}%`}
-                        icon={<Zap aria-hidden="true" className="h-4 w-4 text-yellow-500" />}
+                        value={((service?.obstruction_fraction || 0) * 100).toFixed(2)}
+                        unit="%"
+                        icon={<Zap className="h-4 w-4" />}
                     >
-                        <div className="mt-2 border-t border-white/5 pt-2 space-y-1">
-                            <div className="flex items-center justify-between text-[10px]">
-                                <span className="text-zinc-500 uppercase tracking-tighter">Estabilidad</span>
-                                <span className={cn(
-                                    "font-mono font-bold",
-                                    service.obstruction_fraction > 0.05 ? "text-red-400" : "text-green-400"
-                                )}>
-                                    {service.obstruction_fraction < 0.01 ? "Óptima" : service.obstruction_fraction < 0.05 ? "Normal" : "Crítica"}
-                                </span>
-                            </div>
+                        <div className="mt-2 flex items-center justify-between">
+                            <span className="text-[10px] text-zinc-500 uppercase font-bold">Estabilidad</span>
+                            <span className={cn(
+                                "text-[10px] font-bold uppercase",
+                                (service?.obstruction_fraction || 0) > 0.05 ? "text-red-400" : "text-green-400"
+                            )}>
+                                {(service?.obstruction_fraction || 0) < 0.01 ? "Óptima" : "Crítica"}
+                            </span>
                         </div>
                     </StatusCard>
+
                     <StatusCard
                         label="Descarga"
-                        value={network.downlink_mbps.toFixed(1)}
+                        value={network?.downlink_mbps ? network.downlink_mbps.toFixed(1) : "0.0"}
                         unit="Mbps"
-                        icon={<ArrowDown aria-hidden="true" className="h-4 w-4 text-blue-500" />}
+                        icon={<ArrowDown className="h-4 w-4" />}
                     >
-                        <div className="mt-2 border-t border-white/5 pt-2 flex flex-col gap-1.5">
+                        <div className="mt-2 space-y-1">
                             <div className="flex items-center justify-between text-[10px]">
-                                <span className="text-zinc-500 uppercase tracking-tighter">Pico Máximo</span>
-                                <span className="font-mono text-blue-400 font-bold">{maxDownlink.toFixed(1)} Mbps</span>
+                                <span className="text-zinc-600 uppercase font-bold">Pico Máximo</span>
+                                <span className="text-blue-400 font-bold">{maxDownlink.toFixed(1)} Mbps</span>
                             </div>
                             <div className="flex items-center justify-between text-[10px]">
-                                <span className="text-zinc-500 uppercase tracking-tighter">Promedio Hist.</span>
-                                <span className="font-mono text-zinc-300 font-bold">{avgDownlink.toFixed(1)} Mbps</span>
+                                <span className="text-zinc-600 uppercase font-bold">Promedio Hist.</span>
+                                <span className="text-zinc-400 font-bold">{avgDownlink.toFixed(1)} Mbps</span>
                             </div>
                         </div>
                     </StatusCard>
+
                     <StatusCard
                         label="Subida"
-                        value={network.uplink_mbps.toFixed(1)}
+                        value={network?.uplink_mbps ? network.uplink_mbps.toFixed(1) : "0.0"}
                         unit="Mbps"
-                        icon={<ArrowUp aria-hidden="true" className="h-4 w-4 text-blue-500" />}
+                        icon={<ArrowUp className="h-4 w-4" />}
                     >
-                        <div className="mt-2 border-t border-white/5 pt-2 flex flex-col gap-1.5">
+                        <div className="mt-2 space-y-1">
                             <div className="flex items-center justify-between text-[10px]">
-                                <span className="text-zinc-500 uppercase tracking-tighter">Pico Máximo</span>
-                                <span className="font-mono text-purple-400 font-bold">{maxUplink.toFixed(1)} Mbps</span>
+                                <span className="text-zinc-600 uppercase font-bold">Pico Máximo</span>
+                                <span className="text-purple-400 font-bold">{maxUplink.toFixed(1)} Mbps</span>
                             </div>
                             <div className="flex items-center justify-between text-[10px]">
-                                <span className="text-zinc-500 uppercase tracking-tighter">Promedio Hist.</span>
-                                <span className="font-mono text-zinc-300 font-bold">{avgUplink.toFixed(1)} Mbps</span>
+                                <span className="text-zinc-600 uppercase font-bold">Promedio Hist.</span>
+                                <span className="text-zinc-400 font-bold">{avgUplink.toFixed(1)} Mbps</span>
                             </div>
                         </div>
                     </StatusCard>
+
                     <StatusCard
                         label="Latencia"
-                        value={network.latency_ms.toFixed(0)}
+                        value={network?.latency_ms ? Math.round(network.latency_ms) : "--"}
                         unit="ms"
-                        icon={<Activity aria-hidden="true" className="h-4 w-4 text-purple-500" />}
+                        icon={<Activity className="h-4 w-4" />}
                     >
-                        <div className="mt-2 border-t border-white/5 pt-2 flex flex-col gap-1.5">
-                            <div className="flex items-center justify-between text-[10px]">
-                                <span className="text-zinc-500 uppercase tracking-tighter">Pérdida Paquetes</span>
+                        <div className="mt-2 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <span className="text-[10px] text-zinc-600 uppercase font-bold">Pérdida</span>
                                 <span className={cn(
-                                    "font-mono font-bold",
-                                    network.packet_loss > 0 ? "text-red-400" : "text-green-400"
-                                )}>
-                                    {(network.packet_loss * 100).toFixed(1)}%
-                                </span>
+                                    "text-[10px] font-bold",
+                                    (network?.packet_loss || 0) > 0 ? "text-red-400" : "text-green-400"
+                                )}>{((network?.packet_loss || 0) * 100).toFixed(1)}%</span>
                             </div>
-                            <div className="flex items-center justify-between text-[10px]">
-                                <span className="text-zinc-500 uppercase tracking-tighter">Promedio Hist.</span>
-                                <span className="font-mono text-zinc-300 font-bold">{avgLatency.toFixed(0)} ms</span>
-                            </div>
+                        </div>
+                        <div className="mt-1 flex items-center gap-2">
+                            <span className="text-[10px] text-zinc-600 uppercase font-bold">Promedio hist.</span>
+                            <span className="text-[10px] text-zinc-400 font-bold">{Math.round(avgLatency)} ms</span>
                         </div>
                     </StatusCard>
                 </div>
