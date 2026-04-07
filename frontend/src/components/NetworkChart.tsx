@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useRef, useEffect, useState, useMemo } from "react";
+import { memo, useRef, useEffect, useMemo } from "react";
 import uPlot from "uplot";
 import "uplot/dist/uPlot.min.css";
 
@@ -8,12 +8,18 @@ interface NetworkChartProps {
     data: { timestamp: string; downlink: number; uplink: number; latency: number; packet_loss: number; power: number; obstruction: number }[];
 }
 
-function makeGradient(ctx: CanvasRenderingContext2D, color: string, height: number): CanvasGradient {
-    const h = Number.isFinite(height) && height > 0 ? height : 300;
-    const grad = ctx.createLinearGradient(0, 0, 0, h);
-    grad.addColorStop(0, color + "4D"); // 30% opacity
-    grad.addColorStop(1, color + "00"); // 0% opacity
-    return grad;
+
+
+function makeGradient(color: string) {
+    return (u: uPlot) => {
+        const ctx = u.ctx;
+        const { top, height } = u.bbox;
+        if (!isFinite(top) || !isFinite(height)) return color;
+        const gradient = ctx.createLinearGradient(0, top, 0, top + height);
+        gradient.addColorStop(0, color);
+        gradient.addColorStop(1, "transparent");
+        return gradient;
+    };
 }
 
 function buildThroughputOpts(width: number, height: number): uPlot.Options {
@@ -25,27 +31,28 @@ function buildThroughputOpts(width: number, height: number): uPlot.Options {
         cursor: { show: true, drag: { x: false, y: false } },
         select: { show: false, left: 0, top: 0, width: 0, height: 0 },
         legend: { show: true, live: true },
+        focus: { alpha: 0.3 },
         axes: [
             {
-                stroke: "#52525b",
-                grid: { stroke: "#ffffff08", width: 1 },
-                ticks: { show: false },
-                font: "10px system-ui",
-                space: isMobile ? 60 : 40,
-                values: (u: uPlot, vals: number[]) =>
-                    vals.map(v => {
-                        const d = new Date(v * 1000);
-                        return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
-                    }),
-            },
-            {
-                stroke: "#71717a",
+                stroke: "#3f3f46",
                 grid: { stroke: "#ffffff05", width: 1 },
                 ticks: { show: false },
                 font: "10px system-ui",
+                space: 60,
+                values: (u: uPlot, vals: number[]) =>
+                    vals.map(v => {
+                        const d = new Date(v * 1000);
+                        return d.toLocaleTimeString("es-AR", { hour12: false, hour: "2-digit", minute: "2-digit" });
+                    }),
+            },
+            {
+                stroke: "#3f3f46",
+                grid: { stroke: "#ffffff03", width: 1 },
+                ticks: { show: false },
+                font: "10px system-ui",
                 incrs: [1, 2, 5, 10, 20, 25, 40, 50, 60, 80, 100, 120, 150, 200, 250, 300, 500],
-                values: (u: uPlot, vals: number[]) => vals.map(v => Math.round(v) + (isMobile ? "" : " Mbps")),
-                size: isMobile ? 40 : 60,
+                values: (u: uPlot, vals: number[]) => vals.map(v => Math.round(v) + (isMobile ? "" : " mbps")),
+                size: isMobile ? 40 : 65,
                 space: 15,
             },
         ],
@@ -53,20 +60,27 @@ function buildThroughputOpts(width: number, height: number): uPlot.Options {
             y: { auto: true, range: (u, min, max) => [0, Math.max(30, Math.ceil(max / 10) * 10 + 10)] },
         },
         series: [
-            {},
             {
-                label: "Down",
-                stroke: "#3b82f6",
-                width: 2,
-                fill: (u: uPlot) => makeGradient(u.ctx, "#3b82f6", u.height),
-                value: (u: uPlot, v: number | null) => v == null ? "--" : Math.round(v) + " Mb",
+                label: "time",
+                value: (u: uPlot, v: number | null) => v == null ? "--" : new Date(v * 1000).toLocaleTimeString("es-AR", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" }),
             },
             {
-                label: "Up",
+                label: "down",
+                stroke: "#3b82f6",
+                width: 1,
+                fill: makeGradient("rgba(59, 130, 246, 0.4)"),
+                points: { show: false },
+                paths: uPlot.paths.bars!({ size: [0.4, 100], align: -1 }),
+                value: (u: uPlot, v: number | null) => (v == null || isNaN(v)) ? "--" : Math.round(v) + " mbps",
+            },
+            {
+                label: "up",
                 stroke: "#8b5cf6",
-                width: 2,
-                fill: (u: uPlot) => makeGradient(u.ctx, "#8b5cf6", u.height),
-                value: (u: uPlot, v: number | null) => v == null ? "--" : Math.round(v) + " Mb",
+                width: 1,
+                fill: makeGradient("rgba(139, 92, 246, 0.4)"), // Slightly more opaque for visibility
+                points: { show: false },
+                paths: uPlot.paths.bars!({ size: [0.4, 100], align: 1 }),
+                value: (u: uPlot, v: number | null) => (v == null || isNaN(v)) ? "--" : Math.round(v) + " mbps",
             },
         ],
     };
@@ -81,32 +95,33 @@ function buildLatencyOpts(width: number, height: number): uPlot.Options {
         cursor: { show: true, drag: { x: false, y: false } },
         select: { show: false, left: 0, top: 0, width: 0, height: 0 },
         legend: { show: true, live: true },
+        focus: { alpha: 0.3 },
         axes: [
             {
-                stroke: "#52525b",
-                grid: { stroke: "#ffffff08", width: 1 },
-                ticks: { show: false },
-                font: "10px system-ui",
-                space: isMobile ? 60 : 40,
-                values: (u: uPlot, vals: number[]) =>
-                    vals.map(v => {
-                        const d = new Date(v * 1000);
-                        return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
-                    }),
-            },
-            {
-                stroke: "#71717a",
+                stroke: "#3f3f46",
                 grid: { stroke: "#ffffff05", width: 1 },
                 ticks: { show: false },
                 font: "10px system-ui",
-                incrs: [1, 2, 5, 10, 15, 20, 25, 30, 40, 50, 75, 100, 150, 200, 250, 500],
+                space: 60,
+                values: (u: uPlot, vals: number[]) =>
+                    vals.map(v => {
+                        const d = new Date(v * 1000);
+                        return d.toLocaleTimeString("es-AR", { hour12: false, hour: "2-digit", minute: "2-digit" });
+                    }),
+            },
+            {
+                stroke: "#3f3f46",
+                grid: { stroke: "#ffffff03", width: 1 },
+                ticks: { show: false },
+                font: "10px system-ui",
+                incrs: [5, 10, 15, 20, 25, 30, 40, 50, 75, 100, 150, 200, 250, 500],
                 values: (u: uPlot, vals: number[]) => vals.map(v => Math.round(v) + (isMobile ? "" : " ms")),
                 size: isMobile ? 35 : 55,
                 space: 15,
             },
             {
                 side: 1,
-                stroke: "#ef4444a0",
+                stroke: "#ef444480",
                 grid: { show: false },
                 ticks: { show: false },
                 font: "10px system-ui",
@@ -122,23 +137,28 @@ function buildLatencyOpts(width: number, height: number): uPlot.Options {
             loss: { auto: false, range: [0, 1] },
         },
         series: [
-            {},
             {
-                label: "Ping",
-                stroke: "#f59e0b",
-                width: 2,
-                fill: (u: uPlot) => makeGradient(u.ctx, "#f59e0b", u.height),
-                scale: "y",
-                value: (u: uPlot, v: number | null) => v == null ? "--" : Math.round(v) + "ms",
+                label: "time",
             },
             {
-                label: "Loss",
+                label: "ping",
+                stroke: "#f59e0b",
+                width: 1,
+                fill: makeGradient("rgba(245, 158, 11, 0.4)"),
+                points: { show: false },
+                paths: uPlot.paths.bars!({ size: [0.6, 100], align: 1 }),
+                scale: "y",
+                value: (u: uPlot, v: number | null) => (v == null || isNaN(v)) ? "--" : Math.round(v) + " ms",
+            },
+            {
+                label: "loss",
                 stroke: "#ef4444",
-                width: 2,
-                fill: (u: uPlot) => makeGradient(u.ctx, "#ef4444", u.height),
+                width: 1,
+                fill: makeGradient("rgba(239, 68, 68, 0.7)"),
+                points: { show: false },
+                paths: uPlot.paths.bars!({ size: [0.6, 100], align: 1 }),
                 scale: "loss",
-                paths: uPlot.paths?.stepped?.({ align: 1 }) || undefined,
-                value: (u: uPlot, v: number | null) => v == null ? "--" : Math.round(v * 100) + "%",
+                value: (u: uPlot, v: number | null) => (v == null || isNaN(v)) ? "--" : Math.round(v * 100) + "%",
             },
         ],
     };
@@ -153,42 +173,46 @@ function buildPowerOpts(width: number, height: number): uPlot.Options {
         cursor: { show: true, drag: { x: false, y: false } },
         select: { show: false, left: 0, top: 0, width: 0, height: 0 },
         legend: { show: true, live: true },
+        focus: { alpha: 0.3 },
         scales: {
             y: { auto: true, range: (u, min, max) => [0, Math.max(80, Math.ceil(max / 10) * 10 + 10)] },
         },
         axes: [
             {
-                stroke: "#52525b",
-                grid: { stroke: "#ffffff08", width: 1 },
-                ticks: { show: false },
-                font: "10px system-ui",
-                space: isMobile ? 60 : 40,
-                values: (u: uPlot, vals: number[]) =>
-                    vals.map(v => {
-                        const d = new Date(v * 1000);
-                        return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
-                    }),
-            },
-            {
-                stroke: "#71717a",
+                stroke: "#3f3f46",
                 grid: { stroke: "#ffffff05", width: 1 },
                 ticks: { show: false },
                 font: "10px system-ui",
+                space: 60,
+                values: (u: uPlot, vals: number[]) =>
+                    vals.map(v => {
+                        const d = new Date(v * 1000);
+                        return d.toLocaleTimeString("es-AR", { hour12: false, hour: "2-digit", minute: "2-digit" });
+                    }),
+            },
+            {
+                stroke: "#3f3f46",
+                grid: { stroke: "#ffffff03", width: 1 },
+                ticks: { show: false },
+                font: "10px system-ui",
                 incrs: [1, 2, 5, 8, 10, 15, 20, 25, 30, 40, 50, 75, 100],
-                values: (u: uPlot, vals: number[]) => vals.map(v => Math.round(v) + (isMobile ? "" : " W")),
+                values: (u: uPlot, vals: number[]) => vals.map(v => Math.round(v) + (isMobile ? "" : " w")),
                 size: isMobile ? 35 : 55,
                 space: 15,
             },
         ],
         series: [
-            {},
             {
-                label: "Pwr",
+                label: "time",
+            },
+            {
+                label: "pwr",
                 stroke: "#ef4444",
-                width: 2,
-                fill: (u: uPlot) => makeGradient(u.ctx, "#ef4444", u.height),
-                paths: uPlot.paths?.stepped?.({ align: 1 }) || undefined,
-                value: (u: uPlot, v: number | null) => v == null ? "--" : Math.round(v) + " W",
+                width: 1,
+                fill: makeGradient("rgba(239, 68, 68, 0.4)"),
+                points: { show: false },
+                paths: uPlot.paths.bars!({ size: [0.6, 100], align: 1 }),
+                value: (u: uPlot, v: number | null) => (v == null || isNaN(v)) ? "--" : Math.round(v) + " w",
             },
         ],
     };
@@ -203,25 +227,26 @@ function buildObstructionOpts(width: number, height: number): uPlot.Options {
         cursor: { show: true, drag: { x: false, y: false } },
         select: { show: false, left: 0, top: 0, width: 0, height: 0 },
         legend: { show: true, live: true },
+        focus: { alpha: 0.3 },
         scales: {
-            y: { auto: false, range: [0, 1] },
+            y: { auto: true, range: (u, min, max) => [0, Math.max(0.001, max * 1.5)] },
         },
         axes: [
             {
-                stroke: "#52525b",
-                grid: { stroke: "#ffffff08", width: 1 },
+                stroke: "#3f3f46",
+                grid: { stroke: "#ffffff05", width: 1 },
                 ticks: { show: false },
                 font: "10px system-ui",
-                space: isMobile ? 60 : 40,
+                space: 60,
                 values: (u: uPlot, vals: number[]) =>
                     vals.map(v => {
                         const d = new Date(v * 1000);
-                        return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
+                        return d.toLocaleTimeString("es-AR", { hour12: false, hour: "2-digit", minute: "2-digit" });
                     }),
             },
             {
-                stroke: "#71717a",
-                grid: { stroke: "#ffffff05", width: 1 },
+                stroke: "#3f3f46",
+                grid: { stroke: "#ffffff03", width: 1 },
                 ticks: { show: false },
                 font: "10px system-ui",
                 incrs: [0.01, 0.02, 0.05, 0.1, 0.2, 0.25, 0.5, 1],
@@ -231,13 +256,17 @@ function buildObstructionOpts(width: number, height: number): uPlot.Options {
             },
         ],
         series: [
-            {},
             {
-                label: "Obs",
+                label: "time",
+            },
+            {
+                label: "obs",
                 stroke: "#f59e0b",
-                width: 2,
-                fill: (u: uPlot) => makeGradient(u.ctx, "#f59e0b", u.height),
-                value: (u: uPlot, v: number | null) => v == null ? "--" : (v * 100).toFixed(2) + "%",
+                width: 1,
+                fill: makeGradient("rgba(245, 158, 11, 0.4)"),
+                points: { show: false },
+                paths: uPlot.paths.bars!({ size: [0.6, 100], align: 1 }),
+                value: (u: uPlot, v: number | null) => (v == null || isNaN(v)) ? "--" : (v * 100).toFixed(2) + "%",
             },
         ],
     };
@@ -260,19 +289,31 @@ function UPlotChart({
         const el = containerRef.current;
         if (!el) return;
 
+        let prevIsMobile = el.clientWidth < 500;
+
         const ro = new ResizeObserver(() => {
             const w = el.clientWidth;
             const h = el.clientHeight;
-            // Force recreation on significant width change to update mobile/desktop options
+            const isMobile = w < 500;
+
             if (chartRef.current) {
-                chartRef.current.setSize({ width: w, height: h });
+                // If we crossed the mobile/desktop threshold, we must rebuild the chart
+                // because uPlot options (like fonts) are static after creation.
+                if (isMobile !== prevIsMobile) {
+                    prevIsMobile = isMobile;
+                    const options = opts(w, h);
+                    chartRef.current.destroy();
+                    chartRef.current = new uPlot(options, data, el);
+                } else {
+                    chartRef.current.setSize({ width: w, height: h });
+                }
             }
         });
         ro.observe(el);
         return () => ro.disconnect();
-    }, []);
+    }, [opts, data]);
 
-    // Chart creation & data update
+    // Chart creation
     useEffect(() => {
         const el = containerRef.current;
         if (!el) return;
@@ -280,8 +321,6 @@ function UPlotChart({
         const w = el.clientWidth || 300;
         const h = el.clientHeight || 200;
 
-        // uPlot doesn't support live option updates for axes/scales.
-        // We must destroy and recreate to apply new scale logic or axis space.
         if (chartRef.current) {
             chartRef.current.destroy();
             chartRef.current = null;
@@ -294,64 +333,58 @@ function UPlotChart({
             chartRef.current?.destroy();
             chartRef.current = null;
         };
-    }, [data, opts]); // Recreates on data or opts change
+        // We INTENTIONALLY don't include `data` here so the chart isn't rebuilt on every tick.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [opts]);
+
+    // Data updates
+    useEffect(() => {
+        if (chartRef.current) {
+            chartRef.current.setData(data);
+        }
+    }, [data]);
 
     return <div ref={containerRef} className={className} />;
 }
 
 export const NetworkChart = memo(function NetworkChart({ data }: NetworkChartProps) {
+    // Convert array-of-objects to columnar format for uPlot
+    const processed = useMemo(() => {
+        if (!data || data.length === 0) {
+            const empty = new Float64Array(0);
+            return [empty, empty, empty, empty, empty, empty, empty];
+        }
+
+        const len = data.length;
+        const tsList = new Float64Array(len);
+        const dlList = new Float64Array(len);
+        const ulList = new Float64Array(len);
+        const latList = new Float64Array(len);
+        const lossList = new Float64Array(len);
+        const pwrList = new Float64Array(len);
+        const obsList = new Float64Array(len);
+
+        for (let i = 0; i < len; i++) {
+            const pt = data[i];
+            const ts = new Date(pt.timestamp).getTime() / 1000;
+            
+            tsList[i] = ts || 0;
+            dlList[i] = pt.downlink || 0;
+            ulList[i] = pt.uplink || 0;
+            latList[i] = pt.latency || 0;
+            lossList[i] = pt.packet_loss || 0;
+            pwrList[i] = pt.power || 0;
+            obsList[i] = pt.obstruction || 0;
+        }
+
+        return [tsList, dlList, ulList, latList, lossList, pwrList, obsList];
+    }, [data]);
+
     if (!data || data.length === 0) return (
         <div className="flex h-[350px] w-full items-center justify-center rounded-2xl border border-white/5 bg-zinc-900/40 text-zinc-500 backdrop-blur-xl">
             Awaiting Data Signal…
         </div>
     );
-
-    // Convert array-of-objects to columnar format for uPlot and detect gaps
-    const processed = useMemo(() => {
-        const tsList = [];
-        const dlList = [];
-        const ulList = [];
-        const latList = [];
-        const lossList = [];
-        const pwrList = [];
-        const obsList = [];
-
-        for (let i = 0; i < data.length; i++) {
-            const currentTs = new Date(data[i].timestamp).getTime() / 1000;
-            
-            // If there's a gap > 10s, insert a NaN point to break the line
-            if (i > 0) {
-                const prevTs = new Date(data[i-1].timestamp).getTime() / 1000;
-                if (currentTs - prevTs > 10) {
-                    tsList.push(prevTs + 0.1); // Small offset
-                    dlList.push(NaN);
-                    ulList.push(NaN);
-                    latList.push(NaN);
-                    lossList.push(NaN);
-                    pwrList.push(NaN);
-                    obsList.push(NaN);
-                }
-            }
-
-            tsList.push(currentTs);
-            dlList.push(data[i].downlink);
-            ulList.push(data[i].uplink);
-            latList.push(data[i].latency);
-            lossList.push(data[i].packet_loss);
-            pwrList.push(data[i].power);
-            obsList.push(data[i].obstruction);
-        }
-
-        return [
-            new Float64Array(tsList),
-            new Float64Array(dlList),
-            new Float64Array(ulList),
-            new Float64Array(latList),
-            new Float64Array(lossList),
-            new Float64Array(pwrList),
-            new Float64Array(obsList)
-        ];
-    }, [data]);
 
     const throughputData: uPlot.AlignedData = [processed[0], processed[1], processed[2]];
     const latencyData: uPlot.AlignedData = [processed[0], processed[3], processed[4]];
@@ -370,7 +403,7 @@ export const NetworkChart = memo(function NetworkChart({ data }: NetworkChartPro
                 <UPlotChart
                     opts={buildThroughputOpts}
                     data={throughputData}
-                    className="w-full h-[200px]"
+                    className="w-full h-[150px] sm:h-[200px]"
                 />
             </div>
 
@@ -384,7 +417,7 @@ export const NetworkChart = memo(function NetworkChart({ data }: NetworkChartPro
                 <UPlotChart
                     opts={buildLatencyOpts}
                     data={latencyData}
-                    className="w-full h-[160px]"
+                    className="w-full h-[130px] sm:h-[160px]"
                 />
             </div>
 
@@ -398,7 +431,7 @@ export const NetworkChart = memo(function NetworkChart({ data }: NetworkChartPro
                 <UPlotChart
                     opts={buildPowerOpts}
                     data={powerData}
-                    className="w-full h-[150px]"
+                    className="w-full h-[120px] sm:h-[150px]"
                 />
             </div>
 
@@ -412,7 +445,7 @@ export const NetworkChart = memo(function NetworkChart({ data }: NetworkChartPro
                 <UPlotChart
                     opts={buildObstructionOpts}
                     data={obstructionData}
-                    className="w-full h-[120px]"
+                    className="w-full h-[100px] sm:h-[120px]"
                 />
             </div>
         </div>

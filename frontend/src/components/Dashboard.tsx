@@ -1,4 +1,4 @@
-import { memo, useState, useMemo } from "react";
+import { memo, useState, useMemo, useEffect } from "react";
 import { StatusSnapshot } from "../types";
 import { AlertBanner } from "./AlertBanner";
 import { StatusCard } from "./StatusCard";
@@ -23,7 +23,23 @@ interface DashboardProps {
 export const Dashboard = memo(function Dashboard({ status, history, isConnected }: DashboardProps) {
     const { health, service, network, installation, alerts } = status || {};
 
-    const [sampleLimitSeconds, setSampleLimitSeconds] = useState(300); // Default to 5m
+    const [sampleLimitSeconds, setSampleLimitSeconds] = useState(300);
+
+    useEffect(() => {
+        const saved = localStorage.getItem('starlink_sample_limit');
+        if (saved) {
+            const parsed = parseInt(saved);
+            setTimeout(() => {
+                setSampleLimitSeconds(prev => prev !== parsed ? parsed : prev);
+            }, 0);
+        }
+    }, []);
+
+    const handleSetLimit = (limit: number) => {
+        setSampleLimitSeconds(limit);
+        localStorage.setItem('starlink_sample_limit', limit.toString());
+    };
+
 
     // Filter history based on time instead of point count for accuracy
     const timeFilteredHistory = useMemo(() => {
@@ -139,19 +155,7 @@ export const Dashboard = memo(function Dashboard({ status, history, isConnected 
     if (!service || !network || !health || !installation) return null;
 
     return (
-        <div className="min-h-screen bg-[#020205] p-6 text-zinc-100 selection:bg-blue-500/30 relative overflow-hidden">
-            {/* Ambient Background Effects */}
-            <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none mix-blend-overlay" />
-            <div className="absolute inset-0 bg-grid-white/[0.02] bg-[size:50px_50px] pointer-events-none" />
-
-            <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-blue-600/10 rounded-full blur-[120px] pointer-events-none" />
-            <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-purple-600/10 rounded-full blur-[120px] pointer-events-none" />
-
-            {/* Floating Stars/Particles */}
-            <div className="absolute top-1/4 left-1/3 w-1 h-1 bg-white rounded-full animate-ping opacity-20" />
-            <div className="absolute top-2/3 left-1/4 w-1 h-1 bg-white rounded-full animate-ping opacity-10" style={{ animationDelay: '1.5s' }} />
-            <div className="absolute top-1/2 right-1/4 w-1 h-1 bg-white rounded-full animate-ping opacity-30" style={{ animationDelay: '3s' }} />
-
+        <div className="min-h-screen bg-[#050505] p-4 sm:p-6 text-zinc-100 selection:bg-blue-500/30">
             <div className="mx-auto max-w-7xl space-y-8 relative z-10">
                 {/* Header */}
                 <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between py-4">
@@ -165,7 +169,7 @@ export const Dashboard = memo(function Dashboard({ status, history, isConnected 
                             {SAMPLE_LIMITS.map((limit) => (
                                 <button
                                     key={limit}
-                                    onClick={() => setSampleLimitSeconds(limit)}
+                                    onClick={() => handleSetLimit(limit)}
                                     aria-label={`Ver historial de ${limit === 60 ? "1 minuto" : limit === 300 ? "5 minutos" : limit === 3600 ? "1 hora" : limit === 43200 ? "12 horas" : "24 horas"}`}
                                     className={cn(
                                         "px-3 py-1 text-[10px] font-bold rounded-full transition-[background-color,color,box-shadow] duration-200",
@@ -208,13 +212,19 @@ export const Dashboard = memo(function Dashboard({ status, history, isConnected 
                             "flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-bold border transition-[border-color,background-color,color,shadow] duration-500",
                             isConnected
                                 ? 'border-green-500/20 bg-green-500/5 text-green-400 shadow-[0_0_15px_-5px_rgba(34,197,94,0.3)]'
-                                : 'border-red-500/20 bg-red-500/5 text-red-400 shadow-[0_0_15px_-5px_rgba(239,68,68,0.3)]'
+                                : status
+                                    ? 'border-yellow-500/20 bg-yellow-500/5 text-yellow-400 shadow-[0_0_15px_-5px_rgba(234,179,8,0.3)]'
+                                    : 'border-red-500/20 bg-red-500/5 text-red-400 shadow-[0_0_15px_-5px_rgba(239,68,68,0.3)]'
                         )}>
                             <div className={cn(
-                                "h-2 w-2 rounded-full animate-pulse",
-                                isConnected ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]'
+                                "h-2 w-2 rounded-full",
+                                isConnected
+                                    ? 'bg-green-500 animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.8)]'
+                                    : status
+                                        ? 'bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.8)]'
+                                        : 'bg-red-500 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]'
                             )} />
-                            {isConnected ? 'Sistema Online' : 'Sistema Offline'}
+                            {isConnected ? 'Sistema Live' : status ? 'Sincronizando Live...' : 'Sistema Offline'}
                         </div>
                     </div>
                 </header>

@@ -13,3 +13,5 @@ backend/consumption.json
 frontend/.next/
 frontend/out/
 backend/metrics.db
+backend/metrics.db-journal
+
