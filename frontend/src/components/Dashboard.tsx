@@ -3,7 +3,7 @@ import { StatusSnapshot } from "../types";
 import { AlertBanner } from "./AlertBanner";
 import { StatusCard } from "./StatusCard";
 import dynamic from "next/dynamic";
-import { Activity, ArrowDown, ArrowUp, Zap, Navigation, HardDrive, ArrowUpCircle, Signal } from "lucide-react";
+import { Activity, ArrowDown, ArrowUp, Zap, Navigation, HardDrive, ArrowUpCircle } from "lucide-react";
 import { cn } from "../lib/utils";
 
 const NetworkChart = dynamic(() => import("./NetworkChart").then(mod => mod.NetworkChart), {
@@ -230,14 +230,28 @@ export const Dashboard = memo(function Dashboard({ status, history, isConnected 
                 </header>
 
                 <AlertBanner alerts={alerts || []} />
-                <div className="grid gap-4 sm:gap-6 grid-cols-2 lg:grid-cols-4">
+                <div className="grid gap-4 sm:gap-6 grid-cols-2 lg:grid-cols-5">
                     <div className="col-span-2 lg:col-span-1">
                         <StatusCard
                             label="Estado del Sistema"
                             value={service?.state === "En Línea" ? "Activo" : service?.state || "Offline"}
                             icon={<Activity className="h-4 w-4" />}
                             className={service?.state === "En Línea" ? "border-green-500/10 shadow-[0_0_20px_-10px_rgba(34,197,94,0.1)]" : "border-red-500/10"}
-                        />
+                        >
+                            <div className="mt-2 space-y-1">
+                                <div className="flex items-center justify-between text-[10px]">
+                                    <span className="text-zinc-600 uppercase font-bold">Señal (SNR)</span>
+                                    <span className={cn(
+                                        "font-bold",
+                                        network?.snr_valid ? "text-green-400" : "text-zinc-400"
+                                    )}>{network?.snr_valid ? "Sincronizada" : "Buscando"}</span>
+                                </div>
+                                <div className="flex items-center justify-between text-[10px]">
+                                    <span className="text-zinc-600 uppercase font-bold">Uptime</span>
+                                    <span className="text-zinc-400 font-bold">{(service?.uptime_seconds ? (service.uptime_seconds / 3600).toFixed(1) : "0.0")} h</span>
+                                </div>
+                            </div>
+                        </StatusCard>
                     </div>
 
                     <StatusCard
@@ -346,18 +360,6 @@ export const Dashboard = memo(function Dashboard({ status, history, isConnected 
                                     </span>
                                 </div>
                                 <div className="flex items-center justify-between">
-                                    <span className="text-zinc-500">Calidad Señal (SNR)</span>
-                                    <div className="flex items-center gap-2">
-                                        <Signal className={cn(
-                                            "h-3 w-3",
-                                            network.snr_valid ? "text-green-500" : "text-red-500"
-                                        )} />
-                                        <span className={network.snr_valid ? "text-green-400" : "text-red-400"}>
-                                            {network.snr_valid ? "Sincronizada" : "Ruido Alto"}
-                                        </span>
-                                    </div>
-                                </div>
-                                <div className="flex items-center justify-between">
                                     <span className="text-zinc-500">Ahorro de Energía</span>
                                     <span className={service.power_save_idle ? "text-yellow-400" : "text-zinc-600"}>
                                         {service.power_save_idle ? "Activo" : "Inactivo"}
@@ -370,18 +372,6 @@ export const Dashboard = memo(function Dashboard({ status, history, isConnected 
                                             service.mobility_class === "1" ? "Móvil (Estática)" :
                                                 service.mobility_class === "2" ? "Móvil (Movi)" :
                                                     service.mobility_class}
-                                    </span>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <span className="text-zinc-500">Uptime</span>
-                                    <span className="font-mono text-zinc-100 italic [font-variant-numeric:tabular-nums]">
-                                        {new Intl.NumberFormat('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(service.uptime_seconds / 3600)} h
-                                    </span>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <span className="text-zinc-500">Obstruido (24h)</span>
-                                    <span className="font-mono text-zinc-300 [font-variant-numeric:tabular-nums]">
-                                        {new Intl.NumberFormat('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(service.obstructed_seconds_24h / 60)} min
                                     </span>
                                 </div>
                                 <div className="flex items-center justify-between border-t border-white/5 pt-4 mt-2">

@@ -1,8 +1,9 @@
 "use client";
 
-import { memo, useRef, useEffect, useMemo } from "react";
+import { memo, useMemo, useRef, useEffect } from "react";
 import uPlot from "uplot";
 import "uplot/dist/uPlot.min.css";
+import { cn } from "../lib/utils";
 
 interface NetworkChartProps {
     data: { timestamp: string; downlink: number; uplink: number; latency: number; packet_loss: number; power: number; obstruction: number }[];
@@ -57,7 +58,7 @@ function buildThroughputOpts(width: number, height: number): uPlot.Options {
             },
         ],
         scales: {
-            y: { auto: true, range: (u, min, max) => [0, Math.max(30, Math.ceil(max / 10) * 10 + 10)] },
+            y: { auto: true, range: (u, min, max) => [0, Math.max(1, max * 1.1)] },
         },
         series: [
             {
@@ -133,8 +134,8 @@ function buildLatencyOpts(width: number, height: number): uPlot.Options {
             },
         ],
         scales: {
-            y: { auto: true, range: (u, min, max) => [0, Math.max(100, Math.ceil(max / 20) * 20 + 20)] },
-            loss: { auto: false, range: [0, 1] },
+            y: { auto: true, range: (u, min, max) => [0, Math.max(10, max * 1.3)] },
+            loss: { auto: true, range: (u, min, max) => [0, Math.max(0.1, max * 1.2)] },
         },
         series: [
             {
@@ -175,7 +176,7 @@ function buildPowerOpts(width: number, height: number): uPlot.Options {
         legend: { show: true, live: true },
         focus: { alpha: 0.3 },
         scales: {
-            y: { auto: true, range: (u, min, max) => [0, Math.max(80, Math.ceil(max / 10) * 10 + 10)] },
+            y: { auto: true, range: (u, min, max) => [0, Math.max(1, max * 1.2)] },
         },
         axes: [
             {
@@ -284,67 +285,92 @@ function UPlotChart({
     const containerRef = useRef<HTMLDivElement>(null);
     const chartRef = useRef<uPlot | null>(null);
 
-    // Size tracking
+    // Initial creation and resizing
     useEffect(() => {
         const el = containerRef.current;
         if (!el) return;
 
-        let prevIsMobile = el.clientWidth < 500;
-
-        const ro = new ResizeObserver(() => {
-            const w = el.clientWidth;
-            const h = el.clientHeight;
-            const isMobile = w < 500;
-
+        const handleResize = () => {
             if (chartRef.current) {
-                // If we crossed the mobile/desktop threshold, we must rebuild the chart
-                // because uPlot options (like fonts) are static after creation.
-                if (isMobile !== prevIsMobile) {
-                    prevIsMobile = isMobile;
-                    const options = opts(w, h);
-                    chartRef.current.destroy();
-                    chartRef.current = new uPlot(options, data, el);
-                } else {
-                    chartRef.current.setSize({ width: w, height: h });
-                }
+                chartRef.current.setSize({
+                    width: el.clientWidth,
+                    height: el.clientHeight,
+                });
             }
-        });
+        };
+
+        const ro = new ResizeObserver(handleResize);
         ro.observe(el);
-        return () => ro.disconnect();
-    }, [opts, data]);
 
-    // Chart creation
-    useEffect(() => {
-        const el = containerRef.current;
-        if (!el) return;
-
-        const w = el.clientWidth || 300;
-        const h = el.clientHeight || 200;
-
-        if (chartRef.current) {
-            chartRef.current.destroy();
-            chartRef.current = null;
-        }
-
-        const options = opts(w, h);
-        chartRef.current = new uPlot(options, data, el);
+        const baseOptions = opts(el.clientWidth, el.clientHeight);
         
+        // Add zoom / autozoom capability
+        const finalOptions: uPlot.Options = {
+            ...baseOptions,
+            cursor: {
+                ...baseOptions.cursor,
+                drag: { x: true, y: false },
+            },
+            select: {
+                show: true,
+                over: true,
+                left: 0,
+                top: 0,
+                width: 0,
+                height: 0,
+            },
+            hooks: {
+                ...baseOptions.hooks,
+                setSelect: [
+                    (u) => {
+                        const { left, width } = u.select;
+                        if (width > 0) {
+                            const min = u.posToVal(left, "x");
+                            const max = u.posToVal(left + width, "x");
+                            u.setScale("x", { min, max });
+                            u.setSelect({ width: 0, height: 0, top: 0, left: 0 }, false);
+                        }
+                    },
+                ],
+            },
+        };
+
+        const chart = new uPlot(finalOptions, data, el);
+        chartRef.current = chart;
+
+        const handleDblClick = () => {
+            // @ts-expect-error - uPlot allows null to reset scales
+            chart.setScale("x", { min: null, max: null });
+        };
+        chart.over.addEventListener("dblclick", handleDblClick);
+
         return () => {
-            chartRef.current?.destroy();
+            ro.disconnect();
+            if (chart.over) {
+                chart.over.removeEventListener("dblclick", handleDblClick);
+            }
+            chart.destroy();
             chartRef.current = null;
         };
-        // We INTENTIONALLY don't include `data` here so the chart isn't rebuilt on every tick.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [opts]);
 
-    // Data updates
+    // Data updates (without rebuilding the whole chart)
     useEffect(() => {
         if (chartRef.current) {
             chartRef.current.setData(data);
         }
     }, [data]);
 
-    return <div ref={containerRef} className={className} />;
+    return (
+        <div ref={containerRef} className={cn("relative", className)}>
+             <style jsx global>{`
+                .u-select {
+                    background: rgba(59, 130, 246, 0.15) !important;
+                }
+            `}</style>
+        </div>
+    );
 }
 
 export const NetworkChart = memo(function NetworkChart({ data }: NetworkChartProps) {
