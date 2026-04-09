@@ -10,7 +10,7 @@ async function getInitialData() {
   try {
     const [statusRes, historyRes] = await Promise.all([
       fetch(`${API_BASE_URL}/api/status`, { cache: 'no-store' }),
-      fetch(`${API_BASE_URL}/api/history?limit=86400`, { cache: 'no-store' })
+      fetch(`${API_BASE_URL}/api/history?limit=600`, { cache: 'no-store' })
     ]);
 
     let initialStatus: StatusSnapshot | null = null;

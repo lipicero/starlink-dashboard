@@ -23,8 +23,10 @@ function makeGradient(color: string) {
     };
 }
 
-function buildThroughputOpts(width: number, height: number): uPlot.Options {
+function buildThroughputOpts(width: number, height: number, range: number): uPlot.Options {
     const isMobile = width < 500;
+    const axisSpace = range <= 600 ? 50 : range <= 3600 ? 100 : 150;
+
     return {
         width,
         height,
@@ -39,7 +41,7 @@ function buildThroughputOpts(width: number, height: number): uPlot.Options {
                 grid: { stroke: "#ffffff05", width: 1 },
                 ticks: { show: false },
                 font: "10px system-ui",
-                space: 60,
+                space: axisSpace,
                 values: (u: uPlot, vals: number[]) =>
                     vals.map(v => {
                         const d = new Date(v * 1000);
@@ -78,7 +80,7 @@ function buildThroughputOpts(width: number, height: number): uPlot.Options {
                 label: "up",
                 stroke: "#8b5cf6",
                 width: 1,
-                fill: makeGradient("rgba(139, 92, 246, 0.4)"), // Slightly more opaque for visibility
+                fill: makeGradient("rgba(139, 92, 246, 0.4)"),
                 points: { show: false },
                 paths: uPlot.paths.bars!({ size: [0.4, 100], align: 1 }),
                 value: (u: uPlot, v: number | null) => (v == null || isNaN(v)) ? "--" : Math.round(v) + " mbps",
@@ -87,8 +89,10 @@ function buildThroughputOpts(width: number, height: number): uPlot.Options {
     };
 }
 
-function buildLatencyOpts(width: number, height: number): uPlot.Options {
+function buildLatencyOpts(width: number, height: number, range: number): uPlot.Options {
     const isMobile = width < 500;
+    const axisSpace = range <= 600 ? 50 : range <= 3600 ? 100 : 150;
+
     return {
         width,
         height,
@@ -103,7 +107,7 @@ function buildLatencyOpts(width: number, height: number): uPlot.Options {
                 grid: { stroke: "#ffffff05", width: 1 },
                 ticks: { show: false },
                 font: "10px system-ui",
-                space: 60,
+                space: axisSpace,
                 values: (u: uPlot, vals: number[]) =>
                     vals.map(v => {
                         const d = new Date(v * 1000);
@@ -165,8 +169,10 @@ function buildLatencyOpts(width: number, height: number): uPlot.Options {
     };
 }
 
-function buildPowerOpts(width: number, height: number): uPlot.Options {
+function buildPowerOpts(width: number, height: number, range: number): uPlot.Options {
     const isMobile = width < 500;
+    const axisSpace = range <= 600 ? 50 : range <= 3600 ? 100 : 150;
+
     return {
         width,
         height,
@@ -184,7 +190,7 @@ function buildPowerOpts(width: number, height: number): uPlot.Options {
                 grid: { stroke: "#ffffff05", width: 1 },
                 ticks: { show: false },
                 font: "10px system-ui",
-                space: 60,
+                space: axisSpace,
                 values: (u: uPlot, vals: number[]) =>
                     vals.map(v => {
                         const d = new Date(v * 1000);
@@ -219,8 +225,10 @@ function buildPowerOpts(width: number, height: number): uPlot.Options {
     };
 }
 
-function buildObstructionOpts(width: number, height: number): uPlot.Options {
+function buildObstructionOpts(width: number, height: number, range: number): uPlot.Options {
     const isMobile = width < 500;
+    const axisSpace = range <= 600 ? 50 : range <= 3600 ? 100 : 150;
+
     return {
         width,
         height,
@@ -238,7 +246,7 @@ function buildObstructionOpts(width: number, height: number): uPlot.Options {
                 grid: { stroke: "#ffffff05", width: 1 },
                 ticks: { show: false },
                 font: "10px system-ui",
-                space: 60,
+                space: axisSpace,
                 values: (u: uPlot, vals: number[]) =>
                     vals.map(v => {
                         const d = new Date(v * 1000);
@@ -276,10 +284,12 @@ function buildObstructionOpts(width: number, height: number): uPlot.Options {
 function UPlotChart({
     opts,
     data,
+    range,
     className,
 }: {
-    opts: (w: number, h: number) => uPlot.Options;
+    opts: (w: number, h: number, r: number) => uPlot.Options;
     data: uPlot.AlignedData;
+    range: number;
     className?: string;
 }) {
     const containerRef = useRef<HTMLDivElement>(null);
@@ -302,7 +312,7 @@ function UPlotChart({
         const ro = new ResizeObserver(handleResize);
         ro.observe(el);
 
-        const baseOptions = opts(el.clientWidth, el.clientHeight);
+        const baseOptions = opts(el.clientWidth, el.clientHeight, range);
         
         // Add zoom / autozoom capability
         const finalOptions: uPlot.Options = {
@@ -353,7 +363,7 @@ function UPlotChart({
             chartRef.current = null;
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [opts]);
+    }, [opts, range]);
 
     // Data updates (without rebuilding the whole chart)
     useEffect(() => {
@@ -406,6 +416,11 @@ export const NetworkChart = memo(function NetworkChart({ data }: NetworkChartPro
         return [tsList, dlList, ulList, latList, lossList, pwrList, obsList];
     }, [data]);
 
+    const range = useMemo(() => {
+        if (processed[0].length < 2) return 0;
+        return processed[0][processed[0].length - 1] - processed[0][0];
+    }, [processed]);
+
     if (!data || data.length === 0) return (
         <div className="flex h-[350px] w-full items-center justify-center rounded-2xl border border-white/5 bg-zinc-900/40 text-zinc-500 backdrop-blur-xl">
             Awaiting Data Signal…
@@ -429,6 +444,7 @@ export const NetworkChart = memo(function NetworkChart({ data }: NetworkChartPro
                 <UPlotChart
                     opts={buildThroughputOpts}
                     data={throughputData}
+                    range={range}
                     className="w-full h-[150px] sm:h-[200px]"
                 />
             </div>
@@ -443,6 +459,7 @@ export const NetworkChart = memo(function NetworkChart({ data }: NetworkChartPro
                 <UPlotChart
                     opts={buildLatencyOpts}
                     data={latencyData}
+                    range={range}
                     className="w-full h-[130px] sm:h-[160px]"
                 />
             </div>
@@ -457,6 +474,7 @@ export const NetworkChart = memo(function NetworkChart({ data }: NetworkChartPro
                 <UPlotChart
                     opts={buildPowerOpts}
                     data={powerData}
+                    range={range}
                     className="w-full h-[120px] sm:h-[150px]"
                 />
             </div>
@@ -471,6 +489,7 @@ export const NetworkChart = memo(function NetworkChart({ data }: NetworkChartPro
                 <UPlotChart
                     opts={buildObstructionOpts}
                     data={obstructionData}
+                    range={range}
                     className="w-full h-[100px] sm:h-[120px]"
                 />
             </div>

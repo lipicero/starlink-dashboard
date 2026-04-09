@@ -18,12 +18,44 @@ export class SQLiteWriter {
                 CREATE TABLE IF NOT EXISTS metrics (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     timestamp TEXT,
-                    payload TEXT
+                    payload TEXT,
+                    downlink REAL,
+                    uplink REAL,
+                    latency REAL,
+                    packet_loss REAL,
+                    power REAL,
+                    obstruction REAL
                 )
             `);
 
+            // Migration for existing databases
+            const columns = ['downlink', 'uplink', 'latency', 'packet_loss', 'power', 'obstruction'];
+            for (const col of columns) {
+                try {
+                    this.db.exec(`ALTER TABLE metrics ADD COLUMN ${col} REAL`);
+                } catch (e) {
+                    // Column already exists, ignore
+                }
+            }
+
             // Index for faster time-based queries
             this.db.exec(`CREATE INDEX IF NOT EXISTS idx_metrics_timestamp ON metrics(timestamp)`);
+
+            // Backfill existing JSON data into columns (limit for startup speed)
+            try {
+                this.db.exec(`
+                    UPDATE metrics SET 
+                        downlink = json_extract(payload, '$.network.downlink_mbps'),
+                        uplink = json_extract(payload, '$.network.uplink_mbps'),
+                        latency = json_extract(payload, '$.network.latency_ms'),
+                        packet_loss = json_extract(payload, '$.network.packet_loss'),
+                        power = json_extract(payload, '$.health.power_w'),
+                        obstruction = json_extract(payload, '$.service.obstruction_fraction')
+                    WHERE downlink IS NULL
+                `);
+            } catch (e) {
+                console.error('[SQLite] Backfill error:', e);
+            }
         } catch (err) {
             console.error('[SQLite] Error opening database:', err);
         }
@@ -34,10 +66,22 @@ export class SQLiteWriter {
 
         try {
             const stmt = this.db.prepare(`
-                INSERT INTO metrics (timestamp, payload) VALUES (?, ?)
+                INSERT INTO metrics (
+                    timestamp, payload, 
+                    downlink, uplink, latency, packet_loss, power, obstruction
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             `);
-            // Store the full nested object directly
-            stmt.run(snapshot.timestamp, JSON.stringify(snapshot));
+            
+            stmt.run(
+                snapshot.timestamp, 
+                JSON.stringify(snapshot),
+                snapshot.network?.downlink_mbps || 0,
+                snapshot.network?.uplink_mbps || 0,
+                snapshot.network?.latency_ms || 0,
+                snapshot.network?.packet_loss || 0,
+                snapshot.health?.power_w || 0,
+                snapshot.service?.obstruction_fraction || 0
+            );
         } catch (err) {
             console.error('[SQLite] Write Error:', err);
         }
@@ -49,12 +93,12 @@ export class SQLiteWriter {
             let query = `
                 SELECT 
                     timestamp,
-                    json_extract(payload, '$.network.downlink_mbps') as downlink,
-                    json_extract(payload, '$.network.uplink_mbps') as uplink,
-                    json_extract(payload, '$.network.latency_ms') as latency,
-                    json_extract(payload, '$.network.packet_loss') as packet_loss,
-                    json_extract(payload, '$.health.power_w') as power,
-                    json_extract(payload, '$.service.obstruction_fraction') as obstruction
+                    downlink,
+                    uplink,
+                    latency,
+                    packet_loss,
+                    power,
+                    obstruction
                 FROM metrics 
                 ORDER BY timestamp DESC 
                 LIMIT ?
@@ -69,12 +113,12 @@ export class SQLiteWriter {
                 WITH raw_recent AS (
                     SELECT 
                         timestamp,
-                        json_extract(payload, '$.network.downlink_mbps') as downlink,
-                        json_extract(payload, '$.network.uplink_mbps') as uplink,
-                        json_extract(payload, '$.network.latency_ms') as latency,
-                        json_extract(payload, '$.network.packet_loss') as packet_loss,
-                        json_extract(payload, '$.health.power_w') as power,
-                        json_extract(payload, '$.service.obstruction_fraction') as obstruction
+                        downlink,
+                        uplink,
+                        latency,
+                        packet_loss,
+                        power,
+                        obstruction
                     FROM metrics 
                     ORDER BY timestamp DESC 
                     LIMIT 3600
@@ -82,12 +126,12 @@ export class SQLiteWriter {
                 downsampled_old AS (
                     SELECT 
                         strftime('%Y-%m-%dT%H:%M:00Z', timestamp) as timestamp,
-                        max(json_extract(payload, '$.network.downlink_mbps')) as downlink,
-                        max(json_extract(payload, '$.network.uplink_mbps')) as uplink,
-                        avg(json_extract(payload, '$.network.latency_ms')) as latency,
-                        avg(json_extract(payload, '$.network.packet_loss')) as packet_loss,
-                        avg(json_extract(payload, '$.health.power_w')) as power,
-                        avg(json_extract(payload, '$.service.obstruction_fraction')) as obstruction
+                        max(downlink) as downlink,
+                        max(uplink) as uplink,
+                        avg(latency) as latency,
+                        avg(packet_loss) as packet_loss,
+                        avg(power) as power,
+                        avg(obstruction) as obstruction
                     FROM metrics 
                     WHERE timestamp > datetime('now', '-${seconds} seconds')
                       AND timestamp < (SELECT min(timestamp) FROM raw_recent)

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Dashboard } from "../components/Dashboard";
 import { useSocket } from "../hooks/useSocket";
 import { StatusSnapshot } from "../types";
@@ -19,6 +19,38 @@ export default function HomeClient({ initialStatus, initialHistory }: HomeClient
   const historyRef = useRef(initialHistory);
   const [displayHistory, setDisplayHistory] = useState(initialHistory);
   const lastUpdateRef = useRef(Date.now());
+
+  useEffect(() => {
+    // Cargar historial completo en segundo plano para no bloquear el renderizado inicial
+    const fetchFullHistory = async () => {
+      try {
+        const apiHost = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || `http://${apiHost}:4000`;
+        const url = `${apiUrl}/api/history?limit=86400`;
+        const res = await fetch(url);
+        if (res.ok) {
+          const fullHistory = await res.json();
+          
+          // Fusionar con lo que ya tenemos (pueden haber llegado puntos nuevos por socket)
+          const existingTimestamps = new Set(historyRef.current.map(p => p.timestamp));
+          const newPointsFromHistory = fullHistory.filter((p: any) => !existingTimestamps.has(p.timestamp));
+          
+          const combined = [...newPointsFromHistory, ...historyRef.current].sort((a, b) => 
+            new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+          );
+
+          // Limitar a las últimas 24hs
+          const finalHistory = combined.slice(-86400);
+          historyRef.current = finalHistory;
+          setDisplayHistory([...finalHistory]);
+        }
+      } catch (e) {
+        console.error("Error al cargar historial completo:", e);
+      }
+    };
+
+    fetchFullHistory();
+  }, []);
 
   // Usar el estado inicial del servidor si no ha llegado el primer mensaje de socket
   const currentStatus = data || initialStatus;
